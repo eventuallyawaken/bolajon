@@ -1,0 +1,455 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -------------------------------------------------------------
+// 1. SAAS & SUPERADMIN
+// -------------------------------------------------------------
+
+model Plan {
+  id          String   @id @default(uuid())
+  name        String
+  price       BigInt
+  period      String   @default("oyiga")
+  maxBranches Int      @default(1)
+  maxChildren Int      @default(80)
+  features    Json     @default("[]")
+  isPopular   Boolean  @default(false)
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenants Tenant[]
+
+  @@map("plans")
+}
+
+model Tenant {
+  id           String    @id @default(uuid())
+  name         String
+  slug         String    @unique
+  directorName String?   @map("director_name")
+  phone        String?
+  email        String?
+  status       String    @default("active") // active | trial | suspended
+  planId       String?   @map("plan_id")
+  expiresAt    DateTime? @map("expires_at")
+  trialEndsAt  DateTime? @map("trial_ends_at")
+  features     Json      @default("{\"nurseModule\": true, \"warehouse\": true}")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  plan      Plan?                 @relation(fields: [planId], references: [id])
+  branches  Branch[]
+  users     User[]
+  groups    Group[]
+  children  Child[]
+  invoices      SubscriptionInvoice[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@map("tenants")
+}
+
+model SubscriptionInvoice {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  amount        BigInt
+  status        String    @default("paid")
+  planName      String    @map("plan_name")
+  receiptNumber String?   @map("receipt_number")
+  paidAt        DateTime? @map("paid_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("subscription_invoices")
+}
+
+model Branch {
+  id           String    @id @default(uuid())
+  tenantId     String    @map("tenant_id")
+  name         String
+  address      String
+  managerName  String    @map("manager_name")
+  phone        String
+  capacity     Int       @default(100)
+  groupsCount  Int       @default(1) @map("groups_count")
+  status       String    @default("active") // active | maintenance
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  users    User[]
+  groups   Group[]
+  children Child[]
+
+  @@map("branches")
+}
+
+// -------------------------------------------------------------
+// 2. USERS & RBAC
+// -------------------------------------------------------------
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String?  @map("tenant_id")
+  name        String
+  slug        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users           User[]
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, slug])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  description String?
+  module      String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(uuid())
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  tenantId     String?   @map("tenant_id") // null for Superadmin
+  branchId     String?   @map("branch_id")
+  roleId       String    @map("role_id")
+  fullName     String    @map("full_name")
+  phone        String    @unique
+  email        String?
+  passwordHash String    @map("password_hash")
+  salaryAmount BigInt    @default(0) @map("salary_amount")
+  status       String    @default("active") // active | leave | inactive
+  hiredDate    DateTime? @map("hired_date")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
+  branch        Branch?        @relation(fields: [branchId], references: [id])
+  role          Role           @relation(fields: [roleId], references: [id])
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// -------------------------------------------------------------
+// 3. GROUPS & CHILDREN
+// -------------------------------------------------------------
+
+model Group {
+  id                 String    @id @default(uuid())
+  tenantId           String    @map("tenant_id")
+  branchId           String    @map("branch_id")
+  name               String
+  ageRange           String    @map("age_range")
+  roomNumber         String    @map("room_number")
+  mainTeacherName    String    @map("main_teacher_name")
+  assistantTeacher   String?   @map("assistant_teacher")
+  capacity           Int       @default(25)
+  colorTag           String?   @default("#0d9488") @map("color_tag")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  branch   Branch   @relation(fields: [branchId], references: [id])
+  children Child[]
+
+  @@map("groups")
+}
+
+model Child {
+  id           String    @id @default(uuid())
+  tenantId     String    @map("tenant_id")
+  branchId     String    @map("branch_id")
+  groupId      String    @map("group_id")
+  fullName     String    @map("full_name")
+  birthDate    DateTime  @map("birth_date")
+  gender       String    @default("male")
+  address      String?
+  monthlyFee   BigInt    @default(1800000) @map("monthly_fee")
+  allergies    String?
+  medicalNotes String?   @map("medical_notes")
+  status       String    @default("active")
+  enrolledAt   DateTime  @default(now()) @map("enrolled_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  branch         Branch           @relation(fields: [branchId], references: [id])
+  group          Group            @relation(fields: [groupId], references: [id])
+  parents        ChildParent[]
+  attendances    Attendance[]
+  payments       Payment[]
+  medicalRecords MedicalRecord[]
+
+  @@map("children")
+}
+
+model Parent {
+  id             String   @id @default(uuid())
+  tenantId       String   @map("tenant_id")
+  fullName       String   @map("full_name")
+  phone          String
+  email          String?
+  telegramChatId String?  @map("telegram_chat_id")
+  workplace      String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  children ChildParent[]
+
+  @@map("parents")
+}
+
+model ChildParent {
+  id               String  @id @default(uuid())
+  childId          String  @map("child_id")
+  parentId         String  @map("parent_id")
+  relationType     String  @default("parent") @map("relation_type")
+  isPrimaryContact Boolean @default(true) @map("is_primary_contact")
+
+  child  Child  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, parentId])
+  @@map("child_parents")
+}
+
+// -------------------------------------------------------------
+// 4. ATTENDANCE & MEDICAL
+// -------------------------------------------------------------
+
+model Attendance {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  branchId     String   @map("branch_id")
+  groupId      String   @map("group_id")
+  childId      String   @map("child_id")
+  date         String   // YYYY-MM-DD
+  isPresent    Boolean  @default(true) @map("is_present")
+  status       String   @default("present") // present | absent | late | excused
+  temperature  Float    @default(36.6)
+  healthStatus String   @default("healthy") @map("health_status") // healthy | flu | quarantine
+  notes        String?
+  checkedBy    String?  @map("checked_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, date])
+  @@map("attendances")
+}
+
+model MedicalRecord {
+  id             String   @id @default(uuid())
+  tenantId       String   @map("tenant_id")
+  childId        String   @map("child_id")
+  recordType     String   @map("record_type") // checkup | vaccination | illness
+  description    String
+  recordedByRole String   @map("recorded_by_role")
+  checkedAt      DateTime @default(now()) @map("checked_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@map("medical_records")
+}
+
+// -------------------------------------------------------------
+// 5. FINANCE & WAREHOUSE
+// -------------------------------------------------------------
+
+model Payment {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  branchId      String    @map("branch_id")
+  childId       String    @map("child_id")
+  transactionId String    @unique @map("transaction_id")
+  amount        BigInt
+  month         String
+  method        String    @default("payme") // payme | click | bank | cash
+  status        String    @default("paid") // paid | pending | overdue
+  receiptNumber String?   @map("receipt_number")
+  paidAt        DateTime? @map("paid_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  child Child @relation(fields: [childId], references: [id])
+
+  @@map("payments")
+}
+
+model Expense {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  title         String
+  category      String
+  amount        BigInt
+  recipient     String
+  paymentMethod String   @map("payment_method")
+  date          String
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("expenses")
+}
+
+model WarehouseItem {
+  id             String   @id @default(uuid())
+  tenantId       String   @map("tenant_id")
+  branchId       String   @map("branch_id")
+  name           String
+  category       String
+  quantity       Float    @default(0)
+  unit           String
+  minThreshold   Float    @default(5) @map("min_threshold")
+  lastActionType String   @default("created") @map("last_action_type")
+  lastActionAt   String   @map("last_action_at")
+  status         String   @default("enough") // enough | low | out_of_stock
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  transactions WarehouseTransaction[]
+  ingredients  MenuIngredient[]
+
+  @@map("warehouse_items")
+}
+
+model WarehouseTransaction {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  itemId      String   @map("item_id")
+  type        String   // in | out | attendance_deduct
+  quantity    Float
+  previousQty Float    @map("previous_qty")
+  newQty      Float    @map("new_qty")
+  note        String?
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  item WarehouseItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("warehouse_transactions")
+}
+
+model DailyMenu {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  mealType    String   @map("meal_type") // Nonushta | Ikkinchi nonushta | Tushlik | Kechki ovqat
+  dishName    String   @map("dish_name")
+  description String?
+  calories    String?
+  time        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  ingredients MenuIngredient[]
+
+  @@map("daily_menus")
+}
+
+model MenuIngredient {
+  id              String @id @default(uuid())
+  menuId          String @map("menu_id")
+  warehouseItemId String @map("warehouse_item_id")
+  amountPerChild  Float  @map("amount_per_child")
+  unit            String
+
+  menu DailyMenu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  item WarehouseItem @relation(fields: [warehouseItemId], references: [id], onDelete: Cascade)
+
+  @@map("menu_ingredients")
+}
+
+// -------------------------------------------------------------
+// 6. AUDIT LOGS
+// -------------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String?  @map("tenant_id")
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  oldData   Json?    @map("old_data")
+  newData   Json?    @map("new_data")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+// -------------------------------------------------------------
+// 7. NOTIFICATIONS
+// -------------------------------------------------------------
+
+model Notification {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  userId     String?  @map("user_id")
+  targetRole String   @default("all") @map("target_role") // all | direktor | tarbiyachi | hisobchi | hamshira
+  title      String
+  message    String
+  type       String   @default("info") // info | warning | success | danger
+  isRead     Boolean  @default(false) @map("is_read")
+  link       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}

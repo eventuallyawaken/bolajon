@@ -1,0 +1,217 @@
+/* =========================================
+   CHILD PROFILE PAGE STYLES
+   ========================================= */
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Chap profil kartasi */
+.child-card-main {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.child-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.child-avatar-big {
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+  color: #0f766e;
+  font-size: 28px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--bg-surface);
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.18);
+}
+
+.child-profile-name {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.child-meta-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Kontaktlar va ma'lumotlar ro'yxati */
+.profile-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.profile-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.profile-info-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.profile-info-val {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-info-val a {
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+/* Ogohlantirish bloki */
+.alert-box {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.alert-box svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.alert-box-danger {
+  background: var(--danger-bg);
+  border: 1px solid #fecaca;
+  color: var(--danger-text);
+}
+
+.alert-box-warning {
+  background: var(--warning-bg);
+  border: 1px solid #fde68a;
+  color: var(--warning-text);
+}
+
+.alert-box-info {
+  background: var(--info-bg);
+  border: 1px solid #bfdbfe;
+  color: var(--info-text);
+}
+
+/* O'ng tomon paneli va tablar */
+.profile-content-area {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.profile-card-container {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.tab-nav-wrapper {
+  padding: 0 20px;
+  background: var(--bg-surface);
+}
+
+.profile-tab-body {
+  padding: 24px;
+}
+
+/* Kalendar grid davomat tarixi uchun */
+.att-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.att-cal-day {
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-canvas);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-xs);
+}
+
+.att-cal-day.present {
+  background: var(--success-bg);
+  border-color: #a7f3d0;
+  color: var(--success-text);
+}
+
+.att-cal-day.late {
+  background: var(--warning-bg);
+  border-color: #fde68a;
+  color: var(--warning-text);
+}
+
+.att-cal-day.absent {
+  background: var(--danger-bg);
+  border-color: #fecaca;
+  color: var(--danger-text);
+}
+
+.att-cal-day.weekend {
+  opacity: 0.45;
+  background: var(--bg-subtle);
+}
+
+.att-cal-num {
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.att-cal-status {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+}
