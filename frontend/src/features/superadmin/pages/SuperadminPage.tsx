@@ -7,6 +7,7 @@ import { InvoicesTable } from '../components/InvoicesTable';
 import { LogsSection } from '../components/LogsSection';
 import { CreateTenantModal } from '../components/CreateTenantModal';
 import { PlanModal } from '../components/PlanModal';
+import { UserProfileSettingsSection } from '@/features/settings/components/UserProfileSettingsSection';
 
 export const SuperadminPage: React.FC = () => {
   const {
@@ -25,6 +26,7 @@ export const SuperadminPage: React.FC = () => {
     closeCreateModal,
     handleCreateTenant,
     handleToggleBlock,
+    handleDeleteTenant,
     handleImpersonate,
     selectedPlan,
     isPlanModalOpen,
@@ -56,6 +58,7 @@ export const SuperadminPage: React.FC = () => {
             onStatusFilterChange={setStatusFilter}
             onImpersonate={handleImpersonate}
             onToggleBlock={handleToggleBlock}
+            onDelete={handleDeleteTenant}
             onOpenCreateModal={openCreateModal}
           />
         </div>
@@ -71,6 +74,7 @@ export const SuperadminPage: React.FC = () => {
             onStatusFilterChange={setStatusFilter}
             onImpersonate={handleImpersonate}
             onToggleBlock={handleToggleBlock}
+            onDelete={handleDeleteTenant}
             onOpenCreateModal={openCreateModal}
           />
         </div>
@@ -91,6 +95,9 @@ export const SuperadminPage: React.FC = () => {
 
       {/* Logs tab */}
       {activeTab === 'logs' && <LogsSection logs={logs} />}
+
+      {/* Superadmin Profile & Avatar tab */}
+      {activeTab === 'profile' && <UserProfileSettingsSection />}
 
       {/* Create Tenant Modal */}
       <CreateTenantModal

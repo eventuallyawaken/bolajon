@@ -13,7 +13,7 @@ export interface RecentPaymentItem {
   childName: string;
   groupName: string;
   amount: string;
-  method: 'payme' | 'click' | 'bank' | 'cash';
+  method: 'payme' | 'click' | 'bank' | 'cash' | 'card_transfer' | string;
   time: string;
   status: 'success' | 'pending';
 }
@@ -29,6 +29,15 @@ export interface GroupAttendanceItem {
   teacherName: string;
 }
 
+export interface DashboardFinanceSummary {
+  monthlyRevenue: number;
+  monthlyExpenses: number;
+  pendingReceiptsCount: number;
+  pendingReceiptsAmount: number;
+  totalDebt: number;
+  netBalance: number;
+}
+
 export interface DashboardData {
   branchName: string;
   greetingUser: string;
@@ -36,4 +45,5 @@ export interface DashboardData {
   kpis: DashboardKpiItem[];
   recentPayments: RecentPaymentItem[];
   groupAttendance: GroupAttendanceItem[];
+  financeSummary?: DashboardFinanceSummary;
 }

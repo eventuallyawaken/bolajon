@@ -1,4 +1,10 @@
-export type HealthStatus = 'healthy' | 'cold' | 'fever' | 'complaint';
+export type HealthStatus =
+  | 'healthy'
+  | 'cold'
+  | 'fever'
+  | 'complaint'
+  | 'flu'
+  | 'quarantine';
 
 export interface AttendanceRecord {
   id: string;

@@ -1,6 +1,7 @@
 import { prisma } from '../../config/db.js';
-import { NotFoundError } from '../../common/errors/AppError.js';
+import { BadRequestError, NotFoundError } from '../../common/errors/AppError.js';
 import { hashPassword } from '../../common/utils/password.js';
+import { buildPhoneVariants } from '../../common/utils/phone.js';
 
 function resolveRoleSlug(roleLabel: string): string {
   const lower = roleLabel.trim().toLowerCase();
@@ -17,6 +18,9 @@ export const staffService = {
     const where: Record<string, unknown> = {
       tenantId,
       deletedAt: null,
+      role: {
+        slug: { notIn: ['parent', 'ota_ona', 'superadmin'] },
+      },
     };
     if (branchId) where.branchId = branchId;
     if (search) {
@@ -63,6 +67,7 @@ export const staffService = {
     fullName: string;
     role: string;
     phone: string;
+    password?: string;
     groupAssigned?: string;
     salary: number;
   }) {
@@ -71,6 +76,14 @@ export const staffService = {
       const firstBranch = await prisma.branch.findFirst({ where: { tenantId, deletedAt: null } });
       if (!firstBranch) throw new NotFoundError('Filial topilmadi');
       targetBranchId = firstBranch.id;
+    }
+
+    const phoneVariants = buildPhoneVariants(input.phone);
+    const existingPhoneUser = await prisma.user.findFirst({
+      where: { phone: { in: phoneVariants } },
+    });
+    if (existingPhoneUser) {
+      throw new BadRequestError('Ushbu telefon raqami tizimda allaqachon mavjud');
     }
 
     // Slug for role
@@ -96,7 +109,7 @@ export const staffService = {
       });
     }
 
-    const defaultPasswordHash = await hashPassword('12345678');
+    const passwordHash = await hashPassword(input.password?.trim() || 'Password123!');
     const user = await prisma.user.create({
       data: {
         tenantId,
@@ -104,7 +117,7 @@ export const staffService = {
         roleId: role.id,
         fullName: input.fullName,
         phone: input.phone,
-        passwordHash: defaultPasswordHash,
+        passwordHash,
         salaryAmount: BigInt(Math.round(input.salary)),
         status: 'active',
         hiredDate: new Date(),
@@ -128,6 +141,7 @@ export const staffService = {
     fullName?: string;
     role?: string;
     phone?: string;
+    password?: string;
     groupAssigned?: string;
     salary?: number;
     status?: 'active' | 'leave' | 'inactive';
@@ -137,6 +151,16 @@ export const staffService = {
       include: { role: true },
     });
     if (!existing) throw new NotFoundError('Xodim topilmadi');
+
+    if (input.phone && input.phone !== existing.phone) {
+      const variants = buildPhoneVariants(input.phone);
+      const duplicate = await prisma.user.findFirst({
+        where: { phone: { in: variants }, id: { not: id } },
+      });
+      if (duplicate) {
+        throw new BadRequestError('Ushbu telefon raqami boshqa xodimga biriktirilgan');
+      }
+    }
 
     let roleId = existing.roleId;
     if (input.role && input.role !== existing.role.name) {
@@ -163,11 +187,16 @@ export const staffService = {
       roleId = role.id;
     }
 
+    const updatedPasswordHash = input.password?.trim()
+      ? await hashPassword(input.password.trim())
+      : undefined;
+
     const updated = await prisma.user.update({
       where: { id },
       data: {
         ...(input.fullName && { fullName: input.fullName }),
         ...(input.phone && { phone: input.phone }),
+        ...(updatedPasswordHash && { passwordHash: updatedPasswordHash }),
         ...(input.salary !== undefined && { salaryAmount: BigInt(Math.round(input.salary)) }),
         ...(input.status && { status: input.status }),
         roleId,
@@ -187,7 +216,10 @@ export const staffService = {
     };
   },
 
-  async deleteStaff(tenantId: string, id: string) {
+  async deleteStaff(tenantId: string, id: string, requesterUserId?: string) {
+    if (requesterUserId && id === requesterUserId) {
+      throw new BadRequestError('O‘z hisobingizni o‘chira olmaysiz');
+    }
     const existing = await prisma.user.findFirst({
       where: { id, tenantId, deletedAt: null },
     });

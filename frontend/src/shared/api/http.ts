@@ -2,6 +2,12 @@ import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axio
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+let unauthorizedHandler: (() => void) | null = null;
+
+export const registerUnauthorizedHandler = (handler: () => void) => {
+  unauthorizedHandler = handler;
+};
+
 export const http: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
@@ -38,33 +44,21 @@ http.interceptors.request.use(
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        const refreshRes = await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
-        const newAccessToken = refreshRes.data?.data?.accessToken;
-        if (newAccessToken) {
-          const stored = localStorage.getItem('bolajon_auth');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed.state) {
-              parsed.state.accessToken = newAccessToken;
-              localStorage.setItem('bolajon_auth', JSON.stringify(parsed));
-            }
-          }
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          return http(originalRequest);
-        }
-      } catch {
-        localStorage.removeItem('bolajon_auth');
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+    const reqUrl: string = error.config?.url || '';
+    const status: number | undefined = error.response?.status;
+    const message: string = error.response?.data?.message || '';
+    const isLoginRequest = reqUrl.includes('/auth/login');
+    const isBlockedSession =
+      status === 403 &&
+      (message.includes('to‘xtatilgan') ||
+        message.includes('faol emas') ||
+        message.includes('Suspended'));
+
+    if (!isLoginRequest && (status === 401 || isBlockedSession)) {
+      localStorage.removeItem('bolajon_auth');
+      unauthorizedHandler?.();
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);

@@ -5,8 +5,10 @@ import { expensesApi } from '../api';
 import { ExpensesTable } from '../components/ExpensesTable';
 import { AddExpenseModal } from '../components/AddExpenseModal';
 import { Button } from '@/shared/ui/Button';
+import { useT } from '@/shared/i18n';
 
 export const ExpensesPage: React.FC = () => {
+  const { t } = useT();
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [summary, setSummary] = useState<CashSummary | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -37,7 +39,7 @@ export const ExpensesPage: React.FC = () => {
   if (isLoading) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-        <div className="text-muted">Kassa va xarajatlar yuklanmoqda...</div>
+        <div className="text-muted">{t('expenses.loading')}</div>
       </div>
     );
   }
@@ -48,32 +50,23 @@ export const ExpensesPage: React.FC = () => {
       {summary && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
           <div className="card" style={{ padding: 18, borderLeft: '4px solid #10b981' }}>
-            <span className="text-muted" style={{ fontSize: 12, fontWeight: 600 }}>NAQD KASSA QOLDIG‘I</span>
+            <span className="text-muted" style={{ fontSize: 12, fontWeight: 600 }}>{t('expenses.cashBalance')}</span>
             <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>
-              {summary.cashBalance.toLocaleString()} so‘m
-            </div>
-            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 4 }}>
-              Filial seyfidagi naqd mablag‘
+              {summary.cashBalance.toLocaleString()} {t('common.currency')}
             </div>
           </div>
 
           <div className="card" style={{ padding: 18, borderLeft: '4px solid #3b82f6' }}>
-            <span className="text-muted" style={{ fontSize: 12, fontWeight: 600 }}>BANK HISOB RAQAMIDAGI QOLDIQ</span>
+            <span className="text-muted" style={{ fontSize: 12, fontWeight: 600 }}>{t('expenses.bankBalance')}</span>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#3b82f6', marginTop: 4 }}>
-              {summary.bankBalance.toLocaleString()} so‘m
-            </div>
-            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 4 }}>
-              Asosiy hisob raqam
+              {summary.bankBalance.toLocaleString()} {t('common.currency')}
             </div>
           </div>
 
           <div className="card" style={{ padding: 18, borderLeft: '4px solid #ef4444' }}>
-            <span className="text-muted" style={{ fontSize: 12, fontWeight: 600 }}>SHU OYGI JAMI XARAJAT</span>
+            <span className="text-muted" style={{ fontSize: 12, fontWeight: 600 }}>{t('expenses.monthSpent')}</span>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#ef4444', marginTop: 4 }}>
-              {summary.totalSpentThisMonth.toLocaleString()} so‘m
-            </div>
-            <div style={{ fontSize: 11.5, color: '#ef4444', marginTop: 4 }}>
-              Oziq-ovqat, maosh, kommunal
+              {summary.totalSpentThisMonth.toLocaleString()} {t('common.currency')}
             </div>
           </div>
         </div>
@@ -114,7 +107,7 @@ export const ExpensesPage: React.FC = () => {
           </div>
 
           <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
-            + Yangi xarajat (Chiqim)
+            {t('expenses.add')}
           </Button>
         </div>
       </div>

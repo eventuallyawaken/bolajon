@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useSuperadminContext } from '@/features/superadmin/context/SuperadminContext';
 import type { SuperadminTab } from '@/features/superadmin/types';
@@ -8,6 +8,8 @@ import { useNotificationStore } from '@/shared/store/useNotificationStore';
 import { NotificationDropdown } from '@/shared/ui/NotificationDropdown';
 import { ThemeToggle } from '@/shared/ui/ThemeToggle';
 import { LanguageSelector } from '@/shared/ui/LanguageSelector';
+import { UserAvatar } from '@/shared/ui/UserAvatar';
+import { useT } from '@/shared/i18n';
 
 interface SuperadminLayoutProps {
   children?: React.ReactNode;
@@ -16,6 +18,7 @@ interface SuperadminLayoutProps {
 export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { t } = useT();
   const { unreadCount, isOpen: isNotifOpen, setIsOpen: setIsNotifOpen } = useNotificationStore();
   const {
     activeTab,
@@ -37,15 +40,17 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
   const getPageTitle = () => {
     switch (activeTab) {
       case 'tenants':
-        return 'Ulangan bog‘chalar (Tenantlar)';
+        return t('sa.title.tenants');
       case 'plans':
-        return 'SaaS Obuna tariflari';
+        return t('sa.title.plans');
       case 'invoices':
-        return 'To‘lovlar tarixi (Billing)';
+        return t('sa.title.invoices');
       case 'logs':
-        return 'Tizim loglari va monitoring';
+        return t('sa.title.logs');
+      case 'profile':
+        return t('sa.title.profile');
       default:
-        return 'SaaS Platforma boshqaruvi';
+        return t('sa.title.overview');
     }
   };
 
@@ -85,13 +90,13 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
           </div>
           <div className="brand-info">
             <span className="brand-name">Bolajon SaaS</span>
-            <span className="superadmin-brand-tag">Superadmin Portal</span>
+            <span className="superadmin-brand-tag">{t('sa.brandSub')}</span>
           </div>
         </div>
 
         <nav className="sidebar-nav" aria-label="Superadmin navigatsiya">
           <div>
-            <div className="nav-section-title">Platforma</div>
+            <div className="nav-section-title">{t('sa.nav.platform')}</div>
             <ul className="nav-list">
               <li>
                 <button
@@ -113,7 +118,7 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
                     <rect x="14" y="12" width="7" height="9" rx="2"></rect>
                     <rect x="3" y="16" width="7" height="5" rx="2"></rect>
                   </svg>
-                  Platforma tahlili
+                  {t('sa.nav.overview')}
                 </button>
               </li>
 
@@ -136,7 +141,7 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
                     <path d="M5 21V7l8-4v18"></path>
                     <path d="M19 21V11l-6-4"></path>
                   </svg>
-                  Bog‘chalar (Tenantlar)
+                  {t('sa.nav.tenants')}
                   <span
                     className="nav-badge"
                     style={{ background: 'var(--brand-soft)', color: 'var(--brand-primary)' }}
@@ -164,7 +169,7 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
                     <rect x="2" y="5" width="20" height="14" rx="2"></rect>
                     <line x1="2" y1="10" x2="22" y2="10"></line>
                   </svg>
-                  Obuna tariflari
+                  {t('sa.nav.plans')}
                 </button>
               </li>
 
@@ -186,7 +191,7 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
                     <path d="M12 2v20"></path>
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                   </svg>
-                  To‘lovlar tarixi (Billing)
+                  {t('sa.nav.invoices')}
                 </button>
               </li>
 
@@ -208,17 +213,22 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
                     <polyline points="4 17 10 11 4 5"></polyline>
                     <line x1="12" y1="19" x2="20" y2="19"></line>
                   </svg>
-                  Tizim loglari va monitoring
+                  {t('sa.nav.logs')}
                 </button>
               </li>
             </ul>
           </div>
 
           <div>
-            <div className="nav-section-title">Tezkor o‘tish</div>
+            <div className="nav-section-title">{t('sa.nav.quick')}</div>
             <ul className="nav-list">
               <li>
-                <Link to="/dashboard" className="nav-item" title="Demo bog‘cha ERP ga kirish">
+                <button
+                  type="button"
+                  className="nav-item"
+                  onClick={() => handleTabChange('tenants')}
+                  style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -231,29 +241,21 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
                     <polyline points="10 17 15 12 10 7"></polyline>
                     <line x1="15" y1="12" x2="3" y2="12"></line>
                   </svg>
-                  Bog‘cha ERP paneli
-                </Link>
+                  {t('sa.nav.selectTenant')}
+                </button>
               </li>
               <li>
                 <button
                   type="button"
-                  className="nav-item"
-                  onClick={() => toast.info('Sitemap xaritasi tez orada ishga tushiriladi.')}
+                  className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('profile')}
                   style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
                   </svg>
-                  Sitemap xaritasi
+                  {t('sa.nav.profile')}
                 </button>
               </li>
             </ul>
@@ -262,20 +264,25 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
 
         <div className="sidebar-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div className="avatar" style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a' }}>
-              SA
-            </div>
+            <UserAvatar
+              fullName={user?.fullName || 'SA'}
+              avatarUrl={user?.avatarUrl}
+              size={38}
+              background="#fef3c7"
+              color="#b45309"
+              borderColor="#fde68a"
+            />
             <div className="profile-meta">
               <span className="profile-name">{user?.fullName || 'Bobur Alimov'}</span>
-              <span className="profile-role">Superadmin (Platforma egasi)</span>
+              <span className="profile-role">{t('role.superadminFull')}</span>
             </div>
           </div>
           <button
             type="button"
-            title="Tizimdan chiqish"
+            title={t('common.logout')}
             onClick={async () => {
               await logout();
-              toast.info('Tizimdan chiqildi');
+              toast.info(t('common.loggedOut'));
               navigate('/login');
             }}
             style={{
@@ -326,7 +333,7 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
               </svg>
               <input
                 type="search"
-                placeholder="Bog‘cha nomi yoki STIR qidirish..."
+                placeholder={t('sa.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -340,7 +347,7 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
               <button
                 type="button"
                 className="btn btn-icon notif-btn"
-                aria-label="Bildirishnomalar"
+                aria-label={t('common.notifications')}
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -383,7 +390,7 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                Tarif qo‘shish
+                {t('sa.addPlan')}
               </button>
             ) : (
               <button
@@ -395,9 +402,35 @@ export const SuperadminLayout: React.FC<SuperadminLayoutProps> = ({ children }) 
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                Yangi bog‘cha ulash
+                {t('sa.addTenant')}
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('profile')}
+              title={`${user?.fullName || 'Superadmin'} — ${t('avatar.topbarTitle')}`}
+              aria-label={t('avatar.topbarTitle')}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                borderRadius: '9999px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <UserAvatar
+                fullName={user?.fullName || 'SA'}
+                avatarUrl={user?.avatarUrl}
+                size={38}
+                background="#fef3c7"
+                color="#b45309"
+                borderColor="#fde68a"
+              />
+            </button>
           </div>
         </header>
 

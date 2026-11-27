@@ -10,6 +10,7 @@ import '@/styles/pages/superadmin.css';
 import '@/styles/pages/dashboard.css';
 import '@/styles/pages/attendance.css';
 import '@/styles/pages/finance.css';
+import '@/styles/pages/child-profile.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 createRoot(document.getElementById('root')!).render(

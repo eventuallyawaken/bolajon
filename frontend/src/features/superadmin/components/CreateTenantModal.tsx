@@ -62,7 +62,10 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.subdomain.trim()) return;
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      planId: formData.planId || defaultPlanId,
+    });
     // Reset form
     setFormData({
       name: '',

@@ -102,7 +102,7 @@ export const authService = {
       throw new ForbiddenError('Foydalanuvchi hisobi faol emas');
     }
 
-    if (user.tenant && user.tenant.status === 'suspended') {
+    if (user.tenant && (user.tenant.deletedAt || user.tenant.status === 'suspended')) {
       throw new ForbiddenError('Bog‘cha hisobi to‘xtatilgan (Suspended)');
     }
 
@@ -121,9 +121,9 @@ export const authService = {
     const accessToken = signAccessToken(jwtPayload);
     const refreshToken = signRefreshToken(jwtPayload);
 
-    // Save refresh token in database (Ledger pattern)
+    // Save 1-day refresh token in database (Ledger pattern)
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + 1);
 
     await prisma.refreshToken.create({
       data: {
@@ -141,9 +141,20 @@ export const authService = {
         fullName: user.fullName,
         phone: user.phone,
         email: user.email,
+        avatarUrl: user.avatarUrl || null,
         role: user.role.slug,
+        roleName: user.role.name,
         tenantId: user.tenantId,
         tenantName: user.tenant?.name,
+        tenant: user.tenant
+          ? {
+              id: user.tenant.id,
+              name: user.tenant.name,
+              slug: user.tenant.slug,
+              status: user.tenant.status,
+              features: user.tenant.features,
+            }
+          : null,
         branchId: user.branchId,
         branchName: user.branch?.name,
         groupId: extra.groupId,
@@ -161,15 +172,28 @@ export const authService = {
     }
 
     try {
-      const payload = verifyRefreshToken(token);
+      verifyRefreshToken(token);
 
       const dbToken = await prisma.refreshToken.findUnique({
         where: { tokenHash: token },
-        include: { user: { include: { role: true } } },
+        include: { user: { include: { role: true, tenant: true } } },
       });
 
-      if (!dbToken || dbToken.revokedAt || dbToken.expiresAt < new Date()) {
+      if (
+        !dbToken ||
+        dbToken.revokedAt ||
+        dbToken.expiresAt < new Date() ||
+        dbToken.user.deletedAt ||
+        dbToken.user.status !== 'active'
+      ) {
         throw new UnauthorizedError('Refresh token bekor qilingan yoki muddati o‘tgan');
+      }
+
+      if (
+        dbToken.user.tenant &&
+        (dbToken.user.tenant.deletedAt || dbToken.user.tenant.status === 'suspended')
+      ) {
+        throw new ForbiddenError('Bog‘cha hisobi to‘xtatilgan (Suspended)');
       }
 
       const newAccessToken = signAccessToken({
@@ -180,7 +204,10 @@ export const authService = {
       });
 
       return { accessToken: newAccessToken };
-    } catch {
+    } catch (err) {
+      if (err instanceof UnauthorizedError || err instanceof ForbiddenError) {
+        throw err;
+      }
       throw new UnauthorizedError('Refresh token yaroqsiz');
     }
   },
@@ -205,7 +232,15 @@ export const authService = {
     });
 
     if (!user || user.deletedAt) {
-      throw new BadRequestError('Foydalanuvchi topilmadi');
+      throw new UnauthorizedError('Foydalanuvchi topilmadi');
+    }
+
+    if (user.status !== 'active') {
+      throw new ForbiddenError('Foydalanuvchi hisobi faol emas');
+    }
+
+    if (user.tenant && (user.tenant.deletedAt || user.tenant.status === 'suspended')) {
+      throw new ForbiddenError('Bog‘cha hisobi to‘xtatilgan (Suspended)');
     }
 
     const extra = await buildMobileContext(user);
@@ -215,10 +250,20 @@ export const authService = {
       fullName: user.fullName,
       phone: user.phone,
       email: user.email,
+      avatarUrl: user.avatarUrl || null,
       role: user.role.slug,
       roleName: user.role.name,
       tenantId: user.tenantId,
       tenantName: user.tenant?.name,
+      tenant: user.tenant
+        ? {
+            id: user.tenant.id,
+            name: user.tenant.name,
+            slug: user.tenant.slug,
+            status: user.tenant.status,
+            features: user.tenant.features,
+          }
+        : null,
       branchId: user.branchId,
       branchName: user.branch?.name,
       groupId: extra.groupId,
@@ -227,7 +272,10 @@ export const authService = {
     };
   },
 
-  async updateProfile(userId: string, input: { fullName?: string; phone?: string; email?: string | null }) {
+  async updateProfile(
+    userId: string,
+    input: { fullName?: string; phone?: string; email?: string | null; avatarUrl?: string | null }
+  ) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { role: true },
@@ -251,6 +299,7 @@ export const authService = {
         ...(input.fullName && { fullName: input.fullName }),
         ...(input.phone && { phone: input.phone }),
         ...(input.email !== undefined && { email: input.email }),
+        ...(input.avatarUrl !== undefined && { avatarUrl: input.avatarUrl }),
       },
       include: {
         role: true,
@@ -275,6 +324,7 @@ export const authService = {
       fullName: updated.fullName,
       phone: updated.phone,
       email: updated.email,
+      avatarUrl: updated.avatarUrl || null,
       role: updated.role.slug,
       tenantId: updated.tenantId,
       tenantName: updated.tenant?.name,

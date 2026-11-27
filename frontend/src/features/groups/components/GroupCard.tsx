@@ -4,11 +4,17 @@ import type { KindergartenGroup } from '../types';
 
 interface GroupCardProps {
   group: KindergartenGroup;
+  canManage?: boolean;
   onEdit: (group: KindergartenGroup) => void;
   onDelete: (group: KindergartenGroup) => void;
 }
 
-export const GroupCard: React.FC<GroupCardProps> = ({ group, onEdit, onDelete }) => {
+export const GroupCard: React.FC<GroupCardProps> = ({
+  group,
+  canManage = false,
+  onEdit,
+  onDelete,
+}) => {
   const navigate = useNavigate();
   const fillPercent = Math.min(100, Math.round((group.currentCount / group.capacity) * 100));
 
@@ -46,55 +52,57 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onEdit, onDelete })
           </span>
         </div>
 
-        {/* Action icons: Edit & Delete */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button
-            type="button"
-            title="Guruhni tahrirlash"
-            onClick={() => onEdit(group)}
-            style={{
-              background: '#f1f5f9',
-              border: 'none',
-              borderRadius: '6px',
-              width: 30,
-              height: 30,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: '#0d9488',
-              transition: 'background 0.2s',
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            title="Guruhni o‘chirish"
-            onClick={() => onDelete(group)}
-            style={{
-              background: '#fef2f2',
-              border: 'none',
-              borderRadius: '6px',
-              width: 30,
-              height: 30,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: '#ef4444',
-              transition: 'background 0.2s',
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-          </button>
-        </div>
+        {/* Action icons: Edit & Delete (Director only) */}
+        {canManage && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              type="button"
+              title="Guruhni tahrirlash"
+              onClick={() => onEdit(group)}
+              style={{
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: '6px',
+                width: 30,
+                height: 30,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#0d9488',
+                transition: 'background 0.2s',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              title="Guruhni o‘chirish"
+              onClick={() => onDelete(group)}
+              style={{
+                background: '#fef2f2',
+                border: 'none',
+                borderRadius: '6px',
+                width: 30,
+                height: 30,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#ef4444',
+                transition: 'background 0.2s',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Capacity progress bar */}

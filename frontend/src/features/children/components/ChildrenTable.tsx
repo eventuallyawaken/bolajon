@@ -5,10 +5,15 @@ import { Button } from '@/shared/ui/Button';
 
 interface ChildrenTableProps {
   childrenList: Child[];
+  canDelete?: boolean;
   onDeleteChild: (id: string, name: string) => void;
 }
 
-export const ChildrenTable: React.FC<ChildrenTableProps> = ({ childrenList, onDeleteChild }) => {
+export const ChildrenTable: React.FC<ChildrenTableProps> = ({
+  childrenList,
+  canDelete = false,
+  onDeleteChild,
+}) => {
   return (
     <div className="card">
       <div className="table-wrap">
@@ -21,7 +26,7 @@ export const ChildrenTable: React.FC<ChildrenTableProps> = ({ childrenList, onDe
               <th>Ota-onasi va telefon</th>
               <th>Oylik to‘lov</th>
               <th>Holati</th>
-              <th style={{ textAlign: 'right' }}>Amallar</th>
+              {canDelete && <th style={{ textAlign: 'right' }}>Amallar</th>}
             </tr>
           </thead>
           <tbody>
@@ -75,20 +80,22 @@ export const ChildrenTable: React.FC<ChildrenTableProps> = ({ childrenList, onDe
                   {c.status === 'vacation' && <Badge variant="warning">Ta’tilda</Badge>}
                   {c.status === 'left' && <Badge variant="danger">Chiqib ketgan</Badge>}
                 </td>
-                <td style={{ textAlign: 'right' }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onDeleteChild(c.id, c.fullName)}
-                    title="O‘chirish"
-                    style={{ color: 'var(--danger-text)', padding: '5px 8px' }}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                  </Button>
-                </td>
+                {canDelete && (
+                  <td style={{ textAlign: 'right' }}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDeleteChild(c.id, c.fullName)}
+                      title="O‘chirish"
+                      style={{ color: 'var(--danger-text)', padding: '5px 8px' }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

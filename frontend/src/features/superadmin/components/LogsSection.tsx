@@ -2,15 +2,17 @@ import React from 'react';
 import type { SystemLog } from '../types';
 import { DataTable, type Column } from '@/shared/ui/DataTable';
 import { Badge } from '@/shared/ui/Badge';
+import { useT } from '@/shared/i18n';
 
 interface LogsSectionProps {
   logs: SystemLog[];
 }
 
 export const LogsSection: React.FC<LogsSectionProps> = ({ logs }) => {
+  const { t } = useT();
   const columns: Column<SystemLog>[] = [
     {
-      header: 'Vaqt',
+      header: t('sa.logs.colTime'),
       render: (log) => (
         <span className="tabular-nums font-mono text-muted" style={{ fontSize: 12 }}>
           {log.timestamp}
@@ -18,19 +20,19 @@ export const LogsSection: React.FC<LogsSectionProps> = ({ logs }) => {
       ),
     },
     {
-      header: 'Daraja',
+      header: t('sa.logs.colLevel'),
       render: (log) => {
         if (log.level === 'error') {
-          return <span className="log-level error">&bull; XATOLIK</span>;
+          return <span className="log-level error">&bull; ERROR</span>;
         }
         if (log.level === 'warn') {
-          return <span className="log-level warn">&bull; DIQQAT</span>;
+          return <span className="log-level warn">&bull; WARN</span>;
         }
         return <span className="log-level info">&bull; INFO</span>;
       },
     },
     {
-      header: 'Kategoriya',
+      header: t('sa.logs.colCategory'),
       render: (log) => (
         <Badge variant="default" style={{ textTransform: 'capitalize', fontSize: 11 }}>
           {log.category}
@@ -38,15 +40,15 @@ export const LogsSection: React.FC<LogsSectionProps> = ({ logs }) => {
       ),
     },
     {
-      header: 'Mas’ul aktor',
+      header: t('sa.logs.colActor'),
       render: (log) => <span className="font-semibold text-primary">{log.actor}</span>,
     },
     {
-      header: 'Hodisa tavsifi',
+      header: t('sa.logs.colMessage'),
       render: (log) => <span>{log.message}</span>,
     },
     {
-      header: 'IP manzil',
+      header: t('sa.logs.colIp'),
       render: (log) => (
         <span className="tabular-nums font-mono text-muted" style={{ fontSize: 11.5 }}>
           {log.ip}
@@ -59,9 +61,9 @@ export const LogsSection: React.FC<LogsSectionProps> = ({ logs }) => {
     <div className="card" id="logs">
       <div className="card-header">
         <div>
-          <h3 className="card-title">Tizim loglari va monitoring</h3>
+          <h3 className="card-title">{t('sa.logs.title')}</h3>
           <span className="card-subtitle">
-            Platformadagi barcha xavfsizlik, obuna va ma’muriy amallar jurnali
+            {t('sa.logs.subtitle')}
           </span>
         </div>
       </div>
@@ -70,7 +72,7 @@ export const LogsSection: React.FC<LogsSectionProps> = ({ logs }) => {
         columns={columns}
         data={logs}
         keyExtractor={(item) => item.id}
-        emptyMessage="Tizim loglari topilmadi"
+        emptyMessage={t('sa.logs.empty')}
       />
     </div>
   );

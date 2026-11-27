@@ -13,11 +13,23 @@ export const refreshSchema = z.object({
   }),
 });
 
+const avatarUrlSchema = z
+  .string()
+  .max(480000, 'Rasm hajmi juda katta (maksimal 450 KB)')
+  .refine(
+    (val) =>
+      val.startsWith('https://') ||
+      val.startsWith('http://') ||
+      /^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(val),
+    'Faqat JPG, PNG yoki WebP rasm formatiga ruxsat etiladi'
+  );
+
 export const updateProfileSchema = z.object({
   body: z.object({
     fullName: z.string().min(2, 'Ism-familiya kamida 2 ta belgidan iborat bo‘lishi kerak').optional(),
     phone: z.string().min(9, 'Telefon raqamini to‘liq kiriting').optional(),
     email: z.string().email('Email formati noto‘g‘ri').optional().nullable(),
+    avatarUrl: avatarUrlSchema.nullable().optional(),
   }),
 });
 

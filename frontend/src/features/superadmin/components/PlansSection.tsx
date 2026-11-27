@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Plan } from '../types';
 import { Button } from '@/shared/ui/Button';
+import { useT } from '@/shared/i18n';
 
 interface PlansSectionProps {
   plans: Plan[];
@@ -15,13 +16,14 @@ export const PlansSection: React.FC<PlansSectionProps> = ({
   onEditPlan,
   onDeletePlan,
 }) => {
+  const { t } = useT();
   return (
     <div className="card" id="plans">
       <div className="card-header">
         <div>
-          <h3 className="card-title">SaaS Obuna tariflari va imkoniyatlari</h3>
+          <h3 className="card-title">{t('sa.plans.title')}</h3>
           <span className="card-subtitle">
-            Har bir tarif rejasi bo‘yicha shartlar, filial limitlari va ulangan bog‘chalar soni
+            {t('sa.plans.subtitle')}
           </span>
         </div>
         <Button
@@ -42,7 +44,7 @@ export const PlansSection: React.FC<PlansSectionProps> = ({
             </svg>
           }
         >
-          Tarif qo‘shish
+          {t('sa.addPlan')}
         </Button>
       </div>
 
@@ -96,7 +98,7 @@ export const PlansSection: React.FC<PlansSectionProps> = ({
                   className="tabular-nums font-semibold"
                   style={{ fontSize: 13, color: 'var(--brand-primary)' }}
                 >
-                  {plan.activeTenantsCount} ta faol bog‘cha
+                  {t('sa.plans.activeCount', { count: plan.activeTenantsCount })}
                 </span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   {onDeletePlan && plan.activeTenantsCount === 0 && (

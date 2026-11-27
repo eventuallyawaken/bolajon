@@ -5,8 +5,10 @@ import { staffApi } from '../api';
 import { StaffTable } from '../components/StaffTable';
 import { AddStaffModal } from '../components/AddStaffModal';
 import { Button } from '@/shared/ui/Button';
+import { useT } from '@/shared/i18n';
 
 export const StaffPage: React.FC = () => {
+  const { t } = useT();
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [roleFilter, setRoleFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,7 +54,7 @@ export const StaffPage: React.FC = () => {
   if (isLoading) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-        <div className="text-muted">Xodimlar ro‘yxati yuklanmoqda...</div>
+        <div className="text-muted">{t('staff.loading')}</div>
       </div>
     );
   }
@@ -70,7 +72,7 @@ export const StaffPage: React.FC = () => {
               </svg>
               <input
                 type="search"
-                placeholder="Xodim ismi yoki telefoni..."
+                placeholder={t('staff.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -82,7 +84,7 @@ export const StaffPage: React.FC = () => {
                 className={`chip ${roleFilter === 'all' ? 'active' : ''}`}
                 onClick={() => setRoleFilter('all')}
               >
-                Barchasi ({staffList.length})
+                {t('common.all')} ({staffList.length})
               </button>
               <button
                 type="button"
@@ -109,7 +111,7 @@ export const StaffPage: React.FC = () => {
           </div>
 
           <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
-            + Yangi xodim qo‘shish
+            {t('staff.add')}
           </Button>
         </div>
       </div>

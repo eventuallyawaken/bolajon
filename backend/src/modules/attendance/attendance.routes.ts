@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { attendanceController } from './attendance.controller.js';
 import { requireAuth } from '../../common/middlewares/auth.middleware.js';
 import { requireTenant } from '../../common/middlewares/tenant.middleware.js';
+import { requireRole } from '../../common/middlewares/rbac.middleware.js';
 import { validate } from '../../common/middlewares/validate.middleware.js';
 import { getAttendanceQuerySchema, saveAttendanceSchema } from './attendance.schema.js';
 
 const router = Router();
 
-router.use(requireAuth, requireTenant);
+router.use(requireAuth, requireTenant, requireRole('director', 'teacher', 'nurse'));
 
 router.get('/', validate(getAttendanceQuerySchema), attendanceController.getAttendance);
 router.post('/save', validate(saveAttendanceSchema), attendanceController.saveAttendance);

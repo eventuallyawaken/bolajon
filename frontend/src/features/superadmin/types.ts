@@ -1,4 +1,4 @@
-export type SuperadminTab = 'overview' | 'tenants' | 'plans' | 'invoices' | 'logs';
+export type SuperadminTab = 'overview' | 'tenants' | 'plans' | 'invoices' | 'logs' | 'profile';
 
 export type TenantStatus = 'active' | 'trial' | 'blocked';
 

@@ -1,35 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { CreateChildInput } from '../types';
+import type { KindergartenGroup } from '@/features/groups/types';
+import { groupsApi } from '@/features/groups/api';
 import { Modal } from '@/shared/ui/Modal';
 import { Button } from '@/shared/ui/Button';
 
 interface AddChildModalProps {
   isOpen: boolean;
+  groups?: KindergartenGroup[];
   onClose: () => void;
   onSubmit: (input: CreateChildInput) => void;
 }
 
-export const AddChildModal: React.FC<AddChildModalProps> = ({ isOpen, onClose, onSubmit }) => {
+export const AddChildModal: React.FC<AddChildModalProps> = ({
+  isOpen,
+  groups: propGroups,
+  onClose,
+  onSubmit,
+}) => {
+  const [liveGroups, setLiveGroups] = useState<KindergartenGroup[]>(propGroups || []);
   const [formData, setFormData] = useState<CreateChildInput>({
     fullName: '',
     birthDate: '',
     gender: 'male',
-    groupName: 'Kichkintoylar guruhi',
+    groupName: propGroups?.[0]?.name || '',
     parentName: '',
     parentPhone: '+998 ',
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (propGroups && propGroups.length > 0) {
+      setLiveGroups(propGroups);
+      setFormData((prev) => ({
+        ...prev,
+        groupName: prev.groupName || propGroups[0].name,
+      }));
+      return;
+    }
+    groupsApi.getGroups().then((list) => {
+      setLiveGroups(list);
+      if (list.length > 0) {
+        setFormData((prev) => ({ ...prev, groupName: prev.groupName || list[0].name }));
+      }
+    });
+  }, [isOpen, propGroups]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fullName.trim() || !formData.parentPhone.trim()) return;
+    if (!formData.fullName.trim() || !formData.parentPhone.trim() || !formData.groupName.trim()) return;
     onSubmit(formData);
     setFormData({
       fullName: '',
       birthDate: '',
       gender: 'male',
-      groupName: 'Kichkintoylar guruhi',
+      groupName: liveGroups[0]?.name || '',
       parentName: '',
       parentPhone: '+998 ',
     });
@@ -96,12 +123,17 @@ export const AddChildModal: React.FC<AddChildModalProps> = ({ isOpen, onClose, o
             className="form-select"
             value={formData.groupName}
             onChange={(e) => setFormData({ ...formData, groupName: e.target.value })}
+            required
           >
-            <option value="Kichkintoylar guruhi">Kichkintoylar guruhi (2-3 yosh)</option>
-            <option value="Qaldirg‘och guruhi">Qaldirg‘och guruhi (3-4 yosh)</option>
-            <option value="Zukko bolajonlar">Zukko bolajonlar (4-5 yosh)</option>
-            <option value="Erkatoy guruhi">Erkatoy guruhi (3-4 yosh)</option>
-            <option value="Yulduzcha guruhi">Yulduzcha guruhi (5-6 yosh)</option>
+            {liveGroups.length === 0 ? (
+              <option value="">Avval guruh yarating</option>
+            ) : (
+              liveGroups.map((g) => (
+                <option key={g.id} value={g.name}>
+                  {g.name} ({g.ageRange})
+                </option>
+              ))
+            )}
           </select>
         </div>
 

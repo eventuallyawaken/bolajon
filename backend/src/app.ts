@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { corsOptions } from './config/cors.js';
+import { prisma } from './config/db.js';
 import { errorHandler } from './common/middlewares/error.middleware.js';
 import { NotFoundError } from './common/errors/AppError.js';
 
@@ -21,21 +22,28 @@ import branchesRoutes from './modules/branches/branches.routes.js';
 import settingsRoutes from './modules/settings/settings.routes.js';
 import notificationsRoutes from './modules/notifications/notifications.routes.js';
 import parentRoutes from './modules/parent/parent.routes.js';
+import medicalRoutes from './modules/medical/medical.routes.js';
 
 export const createApp = (): Application => {
   const app = express();
+  app.set('trust proxy', 1);
 
   // Security and utilities
   app.use(helmet());
   app.use(cors(corsOptions));
   app.use(cookieParser());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '2mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
   // Mount API modules for both /api and /api/v1
   const mountRoutes = (prefix: string) => {
-    app.get(`${prefix}/health`, (_req, res) => {
-      res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+    app.get(`${prefix}/health`, async (_req, res) => {
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.status(200).json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+      } catch {
+        res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date().toISOString() });
+      }
     });
     app.use(`${prefix}/auth`, authRoutes);
     app.use(`${prefix}/superadmin`, superadminRoutes);
@@ -51,6 +59,7 @@ export const createApp = (): Application => {
     app.use(`${prefix}/settings`, settingsRoutes);
     app.use(`${prefix}/notifications`, notificationsRoutes);
     app.use(`${prefix}/parent`, parentRoutes);
+    app.use(`${prefix}/medical`, medicalRoutes);
   };
 
   mountRoutes('/api');

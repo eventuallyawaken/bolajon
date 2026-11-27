@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useAuthStore } from '@/shared/store/useAuthStore';
 import type {
   CreatePlanInput,
   CreateTenantInput,
@@ -15,9 +16,11 @@ import type {
 import { superadminApi } from '../api';
 
 export function useSuperadmin() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const impersonateTenantSession = useAuthStore((s) => s.impersonateTenant);
   const rawTab = searchParams.get('tab');
-  const validTabs: SuperadminTab[] = ['overview', 'tenants', 'plans', 'invoices', 'logs'];
+  const validTabs: SuperadminTab[] = ['overview', 'tenants', 'plans', 'invoices', 'logs', 'profile'];
   const activeTab: SuperadminTab = validTabs.includes(rawTab as SuperadminTab)
     ? (rawTab as SuperadminTab)
     : 'overview';
@@ -111,32 +114,79 @@ export function useSuperadmin() {
 
   // Handlers
   const handleCreateTenant = async (input: CreateTenantInput) => {
-    const newTenant = await superadminApi.createTenant(input);
-    setTenants((prev) => [newTenant, ...prev]);
-    const updatedKpis = await superadminApi.getKpis();
-    const updatedLogs = await superadminApi.getSystemLogs();
-    setKpis(updatedKpis);
-    setLogs(updatedLogs);
-    setIsCreateModalOpen(false);
-    toast.success(`"${newTenant.name}" bog‘chasi muvaffaqiyatli ulandi!`);
-  };
-
-  const handleToggleBlock = async (tenantId: string) => {
-    const updated = await superadminApi.toggleBlockTenant(tenantId);
-    setTenants((prev) => prev.map((t) => (t.id === tenantId ? updated : t)));
-    const updatedKpis = await superadminApi.getKpis();
-    const updatedLogs = await superadminApi.getSystemLogs();
-    setKpis(updatedKpis);
-    setLogs(updatedLogs);
-    if (updated.status === 'blocked') {
-      toast.warn(`"${updated.name}" hisobi to‘xtatildi (bloklandi).`);
-    } else {
-      toast.success(`"${updated.name}" hisobi qayta faollashtirildi!`);
+    try {
+      const newTenant = await superadminApi.createTenant(input);
+      setTenants((prev) => [newTenant, ...prev]);
+      const [updatedKpis, updatedLogs, updatedInvoices] = await Promise.all([
+        superadminApi.getKpis(),
+        superadminApi.getSystemLogs(),
+        superadminApi.getInvoices(),
+      ]);
+      setKpis(updatedKpis);
+      setLogs(updatedLogs);
+      setInvoices(updatedInvoices);
+      setIsCreateModalOpen(false);
+      toast.success(`"${newTenant.name}" bog‘chasi muvaffaqiyatli ulandi!`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Bog‘chani yaratishda xatolik yuz berdi');
     }
   };
 
-  const handleImpersonate = (tenant: Tenant) => {
-    toast.info(`"${tenant.name}" direktor paneliga ulanmoqda... (https://${tenant.subdomain})`);
+  const handleToggleBlock = async (tenantId: string) => {
+    const current = tenants.find((t) => t.id === tenantId);
+    const nextStatus: 'active' | 'suspended' =
+      current?.status === 'blocked' ? 'active' : 'suspended';
+    try {
+      const updated = await superadminApi.toggleBlockTenant(tenantId, nextStatus);
+      setTenants((prev) => prev.map((t) => (t.id === tenantId ? updated : t)));
+      const [updatedKpis, updatedLogs] = await Promise.all([
+        superadminApi.getKpis(),
+        superadminApi.getSystemLogs(),
+      ]);
+      setKpis(updatedKpis);
+      setLogs(updatedLogs);
+      if (updated.status === 'blocked') {
+        toast.warn(`"${updated.name}" hisobi to‘xtatildi (bloklandi).`);
+      } else {
+        toast.success(`"${updated.name}" hisobi qayta faollashtirildi!`);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Bog‘cha holatini o‘zgartirishda xatolik');
+    }
+  };
+
+  const handleDeleteTenant = async (tenant: Tenant) => {
+    try {
+      await superadminApi.deleteTenant(tenant.id);
+      setTenants((prev) => prev.filter((t) => t.id !== tenant.id));
+      const [updatedKpis, updatedLogs, updatedInvoices, updatedPlans] = await Promise.all([
+        superadminApi.getKpis(),
+        superadminApi.getSystemLogs(),
+        superadminApi.getInvoices(),
+        superadminApi.getPlans(),
+      ]);
+      setKpis(updatedKpis);
+      setLogs(updatedLogs);
+      setInvoices(updatedInvoices);
+      setPlans(updatedPlans);
+      toast.warn(`"${tenant.name}" tizimdan butunlay o‘chirildi.`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Bog‘chani o‘chirishda xatolik yuz berdi');
+    }
+  };
+
+  const handleImpersonate = async (tenant: Tenant) => {
+    if (tenant.status === 'blocked') {
+      toast.warn('Bloklangan bog‘chaga kirishdan oldin uni faollashtiring.');
+      return;
+    }
+    try {
+      await impersonateTenantSession(tenant.id);
+      toast.success(`"${tenant.name}" boshqaruv paneliga kirildi`);
+      navigate('/dashboard');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Bog‘cha paneliga kirishda xatolik');
+    }
   };
 
   const openCreatePlanModal = () => {
@@ -206,6 +256,7 @@ export function useSuperadmin() {
     handleDeletePlan,
     handleCreateTenant,
     handleToggleBlock,
+    handleDeleteTenant,
     handleImpersonate,
   };
 }

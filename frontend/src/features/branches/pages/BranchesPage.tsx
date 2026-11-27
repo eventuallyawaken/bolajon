@@ -5,8 +5,10 @@ import { branchesApi } from '../api';
 import { CreateBranchModal } from '../components/CreateBranchModal';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
+import { useT } from '@/shared/i18n';
 
 export const BranchesPage: React.FC = () => {
+  const { t } = useT();
   const [branches, setBranches] = useState<BranchItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,7 +33,7 @@ export const BranchesPage: React.FC = () => {
   if (isLoading) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-        <div className="text-muted">Filiallar yuklanmoqda...</div>
+        <div className="text-muted">{t('branches.loading')}</div>
       </div>
     );
   }
@@ -43,14 +45,14 @@ export const BranchesPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Bog‘cha tarmoq filiallari
+              {t('branches.title')}
             </h2>
             <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-              Jami {branches.length} ta faol filial | Ushbu bog‘cha tarmog‘iga qarashli barcha filiallar
+              {branches.length} {t('common.active').toLowerCase()}
             </p>
           </div>
           <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
-            + Yangi filial qo‘shish
+            {t('branches.add')}
           </Button>
         </div>
       </div>

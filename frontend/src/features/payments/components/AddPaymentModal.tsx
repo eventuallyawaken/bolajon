@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '@/shared/ui/Modal';
 import { Button } from '@/shared/ui/Button';
+import { groupsApi } from '@/features/groups/api';
+import { childrenApi } from '@/features/children/api';
+import type { KindergartenGroup } from '@/features/groups/types';
+import type { Child } from '@/features/children/types';
 import type { CreatePaymentInput, PaymentMethod } from '../types';
 
 interface AddPaymentModalProps {
@@ -14,28 +18,60 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const [childrenList, setChildrenList] = useState<Child[]>([]);
+  const [groups, setGroups] = useState<KindergartenGroup[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState('');
   const [childName, setChildName] = useState('');
-  const [groupName, setGroupName] = useState('Kichkintoylar guruhi');
+  const [groupName, setGroupName] = useState('');
   const [amount, setAmount] = useState(1800000);
   const [month, setMonth] = useState('Noyabr 2026');
   const [method, setMethod] = useState<PaymentMethod>('Payme');
   const [receiptNumber, setReceiptNumber] = useState('');
 
+  useEffect(() => {
+    if (!isOpen) return;
+    Promise.all([childrenApi.getChildren(), groupsApi.getGroups()]).then(([kids, grps]) => {
+      setChildrenList(kids);
+      setGroups(grps);
+      if (kids.length > 0 && !selectedChildId) {
+        const first = kids[0];
+        setSelectedChildId(first.id);
+        setChildName(first.fullName);
+        setGroupName(first.groupName);
+        const numericFee = Number(String(first.monthlyFee).replace(/[^\d]/g, ''));
+        if (numericFee > 0) setAmount(numericFee);
+      } else if (grps.length > 0 && !groupName) {
+        setGroupName(grps[0].name);
+      }
+    });
+  }, [isOpen, selectedChildId, groupName]);
+
+  const handleSelectChild = (id: string) => {
+    setSelectedChildId(id);
+    const found = childrenList.find((c) => c.id === id);
+    if (found) {
+      setChildName(found.fullName);
+      setGroupName(found.groupName);
+      const numericFee = Number(String(found.monthlyFee).replace(/[^\d]/g, ''));
+      if (numericFee > 0) setAmount(numericFee);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!childName.trim()) {
-      alert('Iltimos, bolaning ism-sharifini kiriting.');
+      alert('Iltimos, bolani tanlang yoki ism-sharifini kiriting.');
       return;
     }
     onSubmit({
+      ...(selectedChildId ? { childId: selectedChildId } : {}),
       childName: childName.trim(),
-      groupName,
+      groupName: groupName || groups[0]?.name || '',
       amount: Number(amount) || 0,
       month,
       method,
       receiptNumber: receiptNumber.trim() || undefined,
     });
-    setChildName('');
     setReceiptNumber('');
   };
 
@@ -46,15 +82,30 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
           <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
             Tarbiyalanuvchi (Bola) *
           </label>
-          <input
-            type="text"
-            className="branch-select"
-            style={{ width: '100%', height: 40 }}
-            placeholder="Masalan: Ali Vohidov"
-            value={childName}
-            onChange={(e) => setChildName(e.target.value)}
-            required
-          />
+          {childrenList.length > 0 ? (
+            <select
+              className="branch-select"
+              style={{ width: '100%', height: 40 }}
+              value={selectedChildId}
+              onChange={(e) => handleSelectChild(e.target.value)}
+            >
+              {childrenList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.fullName} — {c.groupName}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              className="branch-select"
+              style={{ width: '100%', height: 40 }}
+              placeholder="Masalan: Ali Vohidov"
+              value={childName}
+              onChange={(e) => setChildName(e.target.value)}
+              required
+            />
+          )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -68,10 +119,15 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
             >
-              <option value="Kichkintoylar guruhi">Kichkintoylar guruhi</option>
-              <option value="Qaldirg‘och guruhi">Qaldirg‘och guruhi</option>
-              <option value="Zukko bolajonlar">Zukko bolajonlar</option>
-              <option value="Yulduzcha guruhi">Yulduzcha guruhi</option>
+              {groups.length === 0 ? (
+                <option value={groupName}>{groupName || 'Guruh mavjud emas'}</option>
+              ) : (
+                groups.map((g) => (
+                  <option key={g.id} value={g.name}>
+                    {g.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 

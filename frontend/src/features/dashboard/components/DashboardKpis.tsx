@@ -1,17 +1,28 @@
 import React from 'react';
 import type { DashboardKpiItem } from '../types';
+import { useT, type TranslationKey } from '@/shared/i18n';
 
 interface DashboardKpisProps {
   kpis: DashboardKpiItem[];
 }
 
+const KPI_LABEL_KEYS: Record<string, TranslationKey> = {
+  '1': 'dash.totalChildren',
+  '2': 'dash.todayAttendance',
+  '3': 'dash.teachers',
+  '4': 'dash.monthlyRevenue',
+};
+
 export const DashboardKpis: React.FC<DashboardKpisProps> = ({ kpis }) => {
+  const { t } = useT();
   return (
-    <section className="kpi-grid" aria-label="Asosiy ko‘rsatkichlar">
-      {kpis.map((kpi) => (
-        <article key={kpi.id} className="kpi-card">
-          <div className="kpi-top">
-            <span className="kpi-label">{kpi.label}</span>
+    <section className="kpi-grid" aria-label={t('title.dashboard')}>
+      {kpis.map((kpi) => {
+        const labelText = KPI_LABEL_KEYS[kpi.id] ? t(KPI_LABEL_KEYS[kpi.id]) : kpi.label;
+        return (
+          <article key={kpi.id} className="kpi-card">
+            <div className="kpi-top">
+              <span className="kpi-label">{labelText}</span>
             <div className={`kpi-icon kpi-icon-${kpi.colorClass}`}>
               {kpi.colorClass === 'teal' && (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -52,7 +63,8 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({ kpis }) => {
             <span>{kpi.subValue}</span>
           </div>
         </article>
-      ))}
+        );
+      })}
     </section>
   );
 };

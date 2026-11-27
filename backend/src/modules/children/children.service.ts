@@ -2,6 +2,7 @@ import { prisma } from '../../config/db.js';
 import { NotFoundError } from '../../common/errors/AppError.js';
 import { hashPassword } from '../../common/utils/password.js';
 import { buildPhoneVariants, formatUzPhoneSpaced } from '../../common/utils/phone.js';
+import { notificationsService } from '../notifications/notifications.service.js';
 
 export const childrenService = {
   async getChildren(tenantId: string, branchId?: string, groupId?: string, search?: string) {
@@ -127,7 +128,7 @@ export const childrenService = {
         });
       }
 
-      // 1b. Ensure Parent user account exists for mobile login
+      // 1b. Ensure Parent user account exists and is active for portal/mobile login
       const existingParentUser = await tx.user.findFirst({
         where: { phone: { in: phoneVariants } },
       });
@@ -154,6 +155,11 @@ export const childrenService = {
             passwordHash: defaultHash,
             status: 'active',
           },
+        });
+      } else if (existingParentUser.deletedAt || existingParentUser.status !== 'active') {
+        await tx.user.update({
+          where: { id: existingParentUser.id },
+          data: { deletedAt: null, status: 'active' },
         });
       }
 
@@ -184,6 +190,15 @@ export const childrenService = {
       });
 
       return child;
+    }).then(async (createdChild) => {
+      await notificationsService.notifyChildParents(tenantId, createdChild.id, {
+        title: `Farzandingiz ro‘yxatga olindi: ${createdChild.fullName}`,
+        message: `${createdChild.fullName} bog‘chamizga muvaffaqiyatli qabul qilindi. Ota-ona kabineti orqali kunlik holatni kuzatishingiz mumkin.`,
+        type: 'success',
+        link: '/parent',
+        category: 'system',
+      });
+      return createdChild;
     });
   },
 
@@ -199,10 +214,20 @@ export const childrenService = {
       data.birthDate = new Date(data.birthDate as string);
     }
 
-    return prisma.child.update({
+    const updated = await prisma.child.update({
       where: { id },
       data,
     });
+
+    await notificationsService.notifyChildParents(tenantId, updated.id, {
+      title: `Farzandingiz profili yangilandi: ${updated.fullName}`,
+      message: `${updated.fullName} bo‘yicha shaxsiy yoki tibbiy ma’lumotlar yangilandi.`,
+      type: 'info',
+      link: '/parent/profile',
+      category: 'system',
+    });
+
+    return updated;
   },
 
   async deleteChild(tenantId: string, id: string) {

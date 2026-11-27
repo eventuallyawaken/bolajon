@@ -9,17 +9,25 @@ import { UserProfileSettingsSection } from '../components/UserProfileSettingsSec
 import { CreateBranchModal } from '@/features/branches/components/CreateBranchModal';
 import { useAuthStore } from '@/shared/store/useAuthStore';
 import { Button } from '@/shared/ui/Button';
+import { useT } from '@/shared/i18n';
 
 export const SettingsPage: React.FC = () => {
   const { user } = useAuthStore();
+  const { t } = useT();
   const [settings, setSettings] = useState<KindergartenSettings | null>(null);
   const [branches, setBranches] = useState<BranchItem[]>([]);
   const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isDirectorOrAdmin = !user?.role || ['direktor', 'director', 'superadmin', 'admin'].includes(user.role.toLowerCase());
+  const isDirectorOrAdmin = Boolean(
+    user?.role && ['direktor', 'director'].includes(user.role.toLowerCase())
+  );
 
   useEffect(() => {
+    if (!isDirectorOrAdmin) {
+      setIsLoading(false);
+      return;
+    }
     Promise.all([settingsApi.getSettings(), branchesApi.getBranches()]).then(
       ([settingsData, branchesData]) => {
         setSettings(settingsData);
@@ -27,7 +35,7 @@ export const SettingsPage: React.FC = () => {
         setIsLoading(false);
       }
     );
-  }, []);
+  }, [isDirectorOrAdmin]);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +61,7 @@ export const SettingsPage: React.FC = () => {
   if (isLoading && isDirectorOrAdmin && !settings) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-        <div className="text-muted">Sozlamalar yuklanmoqda...</div>
+        <div className="text-muted">{t('settings.loading')}</div>
       </div>
     );
   }
@@ -70,11 +78,8 @@ export const SettingsPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                  🏢 Bog‘cha asosiy sozlamalari
+                  🏢 {t('settings.orgTitle')}
                 </h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-                  Tashkilot rekvizitlari, oylik to‘lov stavkalari va tarmoq filiallari boshqaruvi
-                </p>
               </div>
 
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -84,7 +89,7 @@ export const SettingsPage: React.FC = () => {
                   size="sm"
                   onClick={() => setIsBranchModalOpen(true)}
                 >
-                  + Yangi filial qo‘shish
+                  {t('branches.add')}
                 </Button>
                 <Button
                   type="button"
@@ -92,7 +97,7 @@ export const SettingsPage: React.FC = () => {
                   size="sm"
                   onClick={(e) => handleSaveSettings(e)}
                 >
-                  Sozlamalarni saqlash
+                  {t('settings.saveBtn')}
                 </Button>
               </div>
             </div>

@@ -3,13 +3,43 @@ import { toast } from 'react-toastify';
 import { useAuthStore } from '@/shared/store/useAuthStore';
 import { settingsApi } from '../api';
 import { Button } from '@/shared/ui/Button';
+import { AvatarDropzone } from '@/shared/ui/AvatarDropzone';
+import { useT } from '@/shared/i18n';
 
 export const UserProfileSettingsSection: React.FC = () => {
   const { user, updateUser } = useAuthStore();
+  const { t } = useT();
 
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+
+  const handleUploadAvatar = async (dataUrl: string) => {
+    try {
+      setIsSavingAvatar(true);
+      const updated = await settingsApi.updateProfile({ avatarUrl: dataUrl });
+      updateUser({ avatarUrl: updated.avatarUrl ?? dataUrl });
+      toast.success(t('avatar.saved'));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || t('avatar.errProcess'));
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    try {
+      setIsSavingAvatar(true);
+      await settingsApi.updateProfile({ avatarUrl: null });
+      updateUser({ avatarUrl: null });
+      toast.info(t('avatar.removed'));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || t('avatar.errProcess'));
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -94,6 +124,9 @@ export const UserProfileSettingsSection: React.FC = () => {
         return { label: 'Hamshira (Tibbiyot)', color: '#dc2626', bg: '#fee2e2' };
       case 'superadmin':
         return { label: 'SaaS Superadmin', color: '#7c3aed', bg: '#ede9fe' };
+      case 'parent':
+      case 'ota_ona':
+        return { label: 'Ota-ona kabineti', color: '#0d9488', bg: '#ccfbf1' };
       default:
         return { label: role || 'Foydalanuvchi', color: '#475569', bg: '#f1f5f9' };
     }
@@ -128,6 +161,14 @@ export const UserProfileSettingsSection: React.FC = () => {
           </span>
         </div>
       </div>
+
+      <AvatarDropzone
+        fullName={user?.fullName}
+        avatarUrl={user?.avatarUrl}
+        isSaving={isSavingAvatar}
+        onUpload={handleUploadAvatar}
+        onRemove={handleRemoveAvatar}
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
         {/* Profile / Login Change Card */}

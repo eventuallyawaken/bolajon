@@ -15,8 +15,10 @@ import { EditStockModal } from '../components/EditStockModal';
 import { AddMenuModal } from '../components/AddMenuModal';
 import { EditMenuModal } from '../components/EditMenuModal';
 import { Button } from '@/shared/ui/Button';
+import { useT } from '@/shared/i18n';
 
 export const WarehousePage: React.FC = () => {
+  const { t } = useT();
   const [activeTab, setActiveTab] = useState<'stock' | 'menu'>('stock');
   const [stockItems, setStockItems] = useState<WarehouseItem[]>([]);
   const [menuItems, setMenuItems] = useState<DailyMenuItem[]>([]);
@@ -92,7 +94,7 @@ export const WarehousePage: React.FC = () => {
   if (isLoading) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-        <div className="text-muted">Ombor va oshxona ma’lumotlari yuklanmoqda...</div>
+        <div className="text-muted">{t('warehouse.loading')}</div>
       </div>
     );
   }
@@ -108,14 +110,14 @@ export const WarehousePage: React.FC = () => {
               className={`chip ${activeTab === 'stock' ? 'active' : ''}`}
               onClick={() => setActiveTab('stock')}
             >
-              Ombor mahsulotlari ({stockItems.length})
+              {t('warehouse.stockTab')} ({stockItems.length})
             </button>
             <button
               type="button"
               className={`chip ${activeTab === 'menu' ? 'active' : ''}`}
               onClick={() => setActiveTab('menu')}
             >
-              Bugungi taomnoma ({menuItems.length} taom)
+              {t('warehouse.menuTab')} ({menuItems.length})
             </button>
           </div>
 

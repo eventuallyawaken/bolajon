@@ -7,6 +7,15 @@ interface PaymentsTableProps {
   onPrintReceipt: (payment: PaymentRecord) => void;
 }
 
+function formatMethodLabel(p: PaymentRecord): string {
+  if (p.method === 'card_transfer') {
+    const bank = p.cardSnapshot?.bankName;
+    const last4 = p.cardSnapshot?.last4;
+    return bank ? `${bank}${last4 ? ` (*${last4})` : ''}` : 'Karta o‘tkazmasi';
+  }
+  return p.method;
+}
+
 export const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, onPrintReceipt }) => {
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -57,7 +66,7 @@ export const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, onPrintR
                         fontWeight: 500,
                       }}
                     >
-                      {p.method}
+                      {formatMethodLabel(p)}
                     </span>
                   </td>
                   <td>
@@ -67,18 +76,19 @@ export const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, onPrintR
                   </td>
                   <td>
                     {p.status === 'paid' && <Badge variant="success">To‘langan</Badge>}
-                    {p.status === 'pending' && <Badge variant="warning">Kutilmoqda</Badge>}
+                    {p.status === 'pending' && <Badge variant="warning">Tekshirilmoqda</Badge>}
+                    {p.status === 'rejected' && <Badge variant="danger">Qaytarilgan</Badge>}
                     {p.status === 'overdue' && <Badge variant="danger">Qarzdorlik</Badge>}
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{p.paidAt}</td>
                   <td style={{ textAlign: 'right' }}>
                     <button
                       type="button"
-                      className="btn btn-outline btn-sm"
+                      className={`btn btn-sm ${p.status === 'pending' ? 'btn-primary' : 'btn-outline'}`}
                       style={{ padding: '4px 10px', fontSize: 12 }}
                       onClick={() => onPrintReceipt(p)}
                     >
-                      Chek
+                      {p.status === 'pending' ? 'Tekshirish' : p.receiptImageUrl ? 'Chek rasmi' : 'Chek'}
                     </button>
                   </td>
                 </tr>

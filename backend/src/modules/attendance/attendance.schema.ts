@@ -14,7 +14,7 @@ export const attendanceRecordItemSchema = z.object({
   isPresent: z.boolean(),
   status: z.enum(['present', 'absent', 'late', 'excused']).default('present'),
   temperature: z.number().min(34).max(43).default(36.6),
-  healthStatus: z.enum(['healthy', 'flu', 'quarantine']).default('healthy'),
+  healthStatus: z.enum(['healthy', 'flu', 'quarantine', 'cold', 'fever', 'complaint']).default('healthy'),
   notes: z.string().optional(),
 });
 

@@ -1,15 +1,20 @@
 import { http } from '@/shared/api/http';
+import { useAuthStore } from '@/shared/store/useAuthStore';
 import type { DashboardData } from './types';
 
 export const dashboardApi = {
   async getDashboardData(): Promise<DashboardData> {
+    const state = useAuthStore.getState();
+    const fallbackBranch = state.user?.branchName || state.tenant?.name || 'Asosiy filial';
+    const fallbackUser = state.user?.fullName || 'Foydalanuvchi';
+
     try {
       const res = await http.get('/dashboard/stats');
       const d = res.data.data;
       if (d && d.kpis && d.branchName) return d;
       return {
-        branchName: d?.branchName || 'Chilonzor filiali',
-        greetingUser: d?.greetingUser || 'Dilnoza Murodova',
+        branchName: d?.branchName || fallbackBranch,
+        greetingUser: d?.greetingUser || fallbackUser,
         todayDate: new Date().toLocaleDateString('uz-UZ'),
         kpis: [
           { id: '1', label: 'Jami bolalar', value: String(d?.totalChildren || 0), subValue: 'Faol tarbiyalanuvchilar', colorClass: 'teal' },
@@ -22,8 +27,8 @@ export const dashboardApi = {
       };
     } catch {
       return {
-        branchName: 'Chilonzor filiali',
-        greetingUser: 'Direktor',
+        branchName: fallbackBranch,
+        greetingUser: fallbackUser,
         todayDate: new Date().toLocaleDateString('uz-UZ'),
         kpis: [
           { id: '1', label: 'Jami bolalar', value: '0', subValue: 'Faol tarbiyalanuvchilar', colorClass: 'teal' },

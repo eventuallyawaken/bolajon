@@ -82,9 +82,13 @@ export const superadminApi = {
     return res.data.data;
   },
 
-  async toggleBlockTenant(id: string): Promise<Tenant> {
-    const res = await http.patch(`/superadmin/tenants/${id}/status`, { status: 'suspended' });
+  async toggleBlockTenant(id: string, nextStatus: 'active' | 'suspended'): Promise<Tenant> {
+    const res = await http.patch(`/superadmin/tenants/${id}/status`, { status: nextStatus });
     return res.data.data;
+  },
+
+  async deleteTenant(id: string): Promise<void> {
+    await http.delete(`/superadmin/tenants/${id}`);
   },
 
   async createPlan(input: CreatePlanInput): Promise<Plan> {
@@ -104,7 +108,7 @@ export const superadminApi = {
   },
 
   async impersonateTenant(id: string) {
-    const res = await http.post(`/superadmin/impersonate/${id}`);
+    const res = await http.post(`/superadmin/tenants/${id}/impersonate`);
     return res.data.data;
   },
 };

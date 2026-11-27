@@ -6,8 +6,13 @@ import { AddGroupModal } from '../components/AddGroupModal';
 import { EditGroupModal } from '../components/EditGroupModal';
 import { GroupCard } from '../components/GroupCard';
 import { Button } from '@/shared/ui/Button';
+import { useAuthStore, normalizeRole } from '@/shared/store/useAuthStore';
+import { useT } from '@/shared/i18n';
 
 export const GroupsPage: React.FC = () => {
+  const { t } = useT();
+  const user = useAuthStore((s) => s.user);
+  const canManageGroups = normalizeRole(user?.role) === 'director';
   const [groups, setGroups] = useState<KindergartenGroup[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<KindergartenGroup | null>(null);
@@ -65,7 +70,7 @@ export const GroupsPage: React.FC = () => {
   if (isLoading) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-        <div className="text-muted">Guruhlar yuklanmoqda...</div>
+        <div className="text-muted">{t('groups.loading')}</div>
       </div>
     );
   }
@@ -77,22 +82,28 @@ export const GroupsPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Guruhlar va tarbiyachilar taqsimoti
+              {t('groups.title')}
             </h2>
             <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-              Jami {groups.length} ta guruh | {totalChildren} / {totalCapacity} bola qamrab olingan ({percentFilled}% to‘ldirilgan)
+              {groups.length} | {totalChildren} / {totalCapacity} ({percentFilled}%)
             </p>
           </div>
-          <Button variant="primary" size="sm" onClick={() => setIsAddModalOpen(true)}>
-            + Yangi guruh ochish
-          </Button>
+          {canManageGroups && (
+            <Button variant="primary" size="sm" onClick={() => setIsAddModalOpen(true)}>
+              {t('groups.add')}
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Groups Grid */}
       {groups.length === 0 ? (
         <div className="card" style={{ padding: '40px 20px', textAlign: 'center' }}>
-          <p className="text-muted" style={{ margin: 0 }}>Hozircha guruhlar mavjud emas. Yuqoridagi "+ Yangi guruh ochish" tugmasini bosing.</p>
+          <p className="text-muted" style={{ margin: 0 }}>
+            {canManageGroups
+              ? 'Hozircha guruhlar mavjud emas. Yuqoridagi "+ Yangi guruh ochish" tugmasini bosing.'
+              : 'Hozircha guruhlar mavjud emas.'}
+          </p>
         </div>
       ) : (
         <div
@@ -106,6 +117,7 @@ export const GroupsPage: React.FC = () => {
             <GroupCard
               key={group.id}
               group={group}
+              canManage={canManageGroups}
               onEdit={(g) => setEditingGroup(g)}
               onDelete={handleDeleteGroup}
             />

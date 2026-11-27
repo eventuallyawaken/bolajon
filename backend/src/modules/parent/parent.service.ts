@@ -1,5 +1,5 @@
 import { prisma } from '../../config/db.js';
-import { ForbiddenError, NotFoundError } from '../../common/errors/AppError.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../../common/errors/AppError.js';
 import { buildPhoneVariants } from '../../common/utils/phone.js';
 
 export const parentService = {
@@ -109,10 +109,21 @@ export const parentService = {
           status: 'completed' as const,
         }));
 
+      const medicalRecords = c.medicalRecords.map((m) => ({
+        id: m.id,
+        recordType: m.recordType,
+        description: m.description,
+        recordedByRole: m.recordedByRole,
+        checkedAt: m.checkedAt.toISOString().slice(0, 10),
+      }));
+
       return {
         id: c.id,
         fullName: c.fullName,
         birthDate: c.birthDate.toISOString().slice(0, 10),
+        gender: c.gender,
+        address: c.address || '',
+        status: c.status,
         groupId: c.groupId,
         groupName: `${c.group.name}${c.group.ageRange ? ` (${c.group.ageRange})` : ''}`,
         branchId: c.branchId,
@@ -124,6 +135,7 @@ export const parentService = {
         teacherName: c.group.mainTeacherName,
         teacherPhone: teacherPhoneMap.get(c.group.mainTeacherName) || c.branch.phone,
         vaccinations,
+        medicalRecords,
       };
     });
   },
@@ -144,7 +156,10 @@ export const parentService = {
       prisma.notification.findFirst({
         where: {
           tenantId,
-          OR: [{ userId }, { targetRole: { in: ['all', 'parent'] } }],
+          AND: [
+            { OR: [{ userId }, { userId: null, targetRole: { in: ['all', 'parent', 'ota_ona'] } }] },
+            { OR: [{ childId }, { childId: null }] },
+          ],
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -187,6 +202,250 @@ export const parentService = {
     };
   },
 
+  async getChildAttendanceHistory(
+    tenantId: string,
+    userId: string,
+    childId: string,
+    monthStr?: string
+  ) {
+    await this.verifyChildAccess(tenantId, userId, childId);
+    const targetMonth = monthStr || new Date().toISOString().slice(0, 7);
+
+    const records = await prisma.attendance.findMany({
+      where: {
+        tenantId,
+        childId,
+        date: { startsWith: targetMonth },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    const presentDays = records.filter((r) => r.status === 'present' || (r.isPresent && r.status !== 'late')).length;
+    const lateDays = records.filter((r) => r.status === 'late').length;
+    const absentDays = records.filter((r) => r.status === 'absent' || !r.isPresent).length;
+
+    return {
+      childId,
+      month: targetMonth,
+      summary: {
+        presentDays,
+        lateDays,
+        absentDays,
+        totalDays: records.length,
+      },
+      records: records.map((r) => ({
+        id: r.id,
+        date: r.date,
+        status: r.status.toUpperCase(),
+        isPresent: r.isPresent,
+        temperature: r.temperature,
+        healthStatus: r.healthStatus,
+        checkedBy: r.checkedBy || '',
+        checkTime: r.updatedAt.toTimeString().slice(0, 5),
+        notes: r.notes || '',
+      })),
+    };
+  },
+
+  async submitAbsenceNotice(
+    tenantId: string,
+    userId: string,
+    childId: string,
+    input: { date: string; reason: string }
+  ) {
+    const child = await this.verifyChildAccess(tenantId, userId, childId);
+    const parentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true },
+    });
+
+    const created = await prisma.$transaction(async (tx) => {
+      const notif = await tx.notification.create({
+        data: {
+          tenantId,
+          title: 'Ota-onadan sababli kelmaslik xabarnomasi',
+          message: `${child.fullName} (${child.group.name}) — ${input.date}: ${input.reason} (${parentUser?.fullName || 'Ota-ona'})`,
+          type: 'warning',
+          targetRole: 'teacher',
+          link: '/attendance',
+        },
+      });
+
+      await tx.notification.create({
+        data: {
+          tenantId,
+          title: 'Ota-onadan sababli kelmaslik xabarnomasi',
+          message: `${child.fullName} (${child.group.name}) — ${input.date}: ${input.reason}`,
+          type: 'info',
+          targetRole: 'director',
+          childId: child.id,
+          category: 'attendance',
+          link: '/attendance',
+        },
+      });
+
+      await tx.notification.create({
+        data: {
+          tenantId,
+          title: 'Tibbiy nazorat: kelmaslik xabarnomasi',
+          message: `${child.fullName} (${child.group.name}) — ${input.date}: ${input.reason}`,
+          type: 'info',
+          targetRole: 'nurse',
+          childId: child.id,
+          category: 'medical',
+          link: '/medical',
+        },
+      });
+
+      return notif;
+    });
+
+    return {
+      id: created.id,
+      childId: created.id,
+      date: input.date,
+      reason: input.reason,
+      createdAt: created.createdAt.toISOString(),
+    };
+  },
+
+  async getPaymentCards(tenantId: string, userId: string, childId?: string) {
+    let branchId: string | undefined;
+    if (childId) {
+      const child = await this.verifyChildAccess(tenantId, userId, childId);
+      branchId = child.branchId;
+    } else {
+      const kids = await this.getMyChildren(tenantId, userId);
+      branchId = kids[0]?.branchId;
+    }
+
+    const cards = await prisma.paymentCard.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        isActive: true,
+        ...(branchId ? { OR: [{ branchId }, { branchId: null }] } : {}),
+      },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+    });
+
+    return cards.map((c) => ({
+      id: c.id,
+      cardType: c.cardType,
+      bankName: c.bankName,
+      cardNumber: c.cardNumber,
+      cardHolder: c.cardHolder,
+      note: c.note || '',
+    }));
+  },
+
+  async submitPaymentReceipt(
+    tenantId: string,
+    userId: string,
+    childId: string,
+    input: {
+      paymentCardId: string;
+      amount: number;
+      periodStart: string;
+      periodEnd: string;
+      month?: string;
+      receiptImage: string;
+    }
+  ) {
+    if (input.periodEnd < input.periodStart) {
+      throw new BadRequestError('Tugash sanasi boshlanish sanasidan kichik bo‘lishi mumkin emas');
+    }
+
+    const child = await this.verifyChildAccess(tenantId, userId, childId);
+
+    const card = await prisma.paymentCard.findFirst({
+      where: { id: input.paymentCardId, tenantId, deletedAt: null, isActive: true },
+    });
+    if (!card) {
+      throw new NotFoundError('Tanlangan to‘lov kartasi topilmadi yoki faol emas');
+    }
+
+    const now = new Date();
+    const transactionId = `TX-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 9000) + 1000}`;
+    const receiptNumber = `CHK-${now.getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`;
+    const periodLabel = input.month?.trim() || `${input.periodStart} — ${input.periodEnd}`;
+    const digits = card.cardNumber.replace(/\D/g, '');
+    const cardSnapshot = {
+      cardType: card.cardType,
+      bankName: card.bankName,
+      cardHolder: card.cardHolder,
+      last4: digits.slice(-4),
+      cardNumberMasked: digits.length >= 4 ? `•••• ${digits.slice(-4)}` : card.cardNumber,
+    };
+
+    const created = await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.create({
+        data: {
+          tenantId,
+          branchId: child.branchId,
+          childId: child.id,
+          paymentCardId: card.id,
+          cardSnapshot,
+          transactionId,
+          amount: BigInt(Math.round(input.amount)),
+          month: periodLabel,
+          periodStart: input.periodStart,
+          periodEnd: input.periodEnd,
+          method: 'card_transfer',
+          status: 'pending',
+          receiptNumber,
+          receiptImageUrl: input.receiptImage,
+          submittedByUserId: userId,
+          paidAt: null,
+        },
+      });
+
+      const notifMsg = `${child.fullName} (${child.group.name}) uchun ${Math.round(input.amount).toLocaleString()} so‘m (${periodLabel}) — ${card.bankName} (*${digits.slice(-4)}) kartasiga chek yuborildi.`;
+
+      await tx.notification.createMany({
+        data: [
+          {
+            tenantId,
+            targetRole: 'accountant',
+            childId: child.id,
+            category: 'payment',
+            title: 'Yangi to‘lov cheki tasdiqlashni kutmoqda',
+            message: notifMsg,
+            type: 'warning',
+            link: '/payments',
+          },
+          {
+            tenantId,
+            targetRole: 'director',
+            childId: child.id,
+            category: 'payment',
+            title: 'Yangi to‘lov cheki yuborildi',
+            message: notifMsg,
+            type: 'info',
+            link: '/payments',
+          },
+        ],
+      });
+
+      return payment;
+    });
+
+    return {
+      id: created.id,
+      receiptNumber: created.receiptNumber || created.transactionId,
+      date: created.createdAt.toISOString().slice(0, 16).replace('T', ' '),
+      month: created.month,
+      periodStart: created.periodStart || undefined,
+      periodEnd: created.periodEnd || undefined,
+      amount: Number(created.amount),
+      method: created.method.toUpperCase(),
+      status: created.status.toUpperCase(),
+      cardSnapshot,
+      receiptImageUrl: created.receiptImageUrl || undefined,
+      childName: child.fullName,
+    };
+  },
+
   async getChildPayments(tenantId: string, userId: string, childId: string) {
     const child = await this.verifyChildAccess(tenantId, userId, childId);
 
@@ -203,7 +462,11 @@ export const parentService = {
     });
 
     const overdueDebt = payments
-      .filter((p) => p.status === 'overdue' || p.status === 'pending')
+      .filter((p) => p.status === 'overdue')
+      .reduce((acc, p) => acc + Number(p.amount), 0);
+
+    const pendingAmount = payments
+      .filter((p) => p.status === 'pending')
       .reduce((acc, p) => acc + Number(p.amount), 0);
 
     const lastPaid = payments.find((p) => p.status === 'paid');
@@ -212,6 +475,7 @@ export const parentService = {
       balanceOverview: {
         monthlyFee: Number(child.monthlyFee),
         debtAmount: overdueDebt,
+        pendingAmount,
         lastPaymentDate: lastPaid?.paidAt ? lastPaid.paidAt.toISOString().slice(0, 10) : '-',
       },
       payments: payments.map((p) => ({
@@ -221,11 +485,16 @@ export const parentService = {
           ? p.paidAt.toISOString().slice(0, 16).replace('T', ' ')
           : p.createdAt.toISOString().slice(0, 16).replace('T', ' '),
         month: p.month,
+        periodStart: p.periodStart || undefined,
+        periodEnd: p.periodEnd || undefined,
         amount: Number(p.amount),
         method: p.method.toUpperCase(),
         status: p.status.toUpperCase(),
         payerName: p.child.parents[0]?.parent?.fullName || 'Ota-ona',
         childName: p.child.fullName,
+        cardSnapshot: (p.cardSnapshot as Record<string, unknown> | null) || undefined,
+        receiptImageUrl: p.receiptImageUrl || undefined,
+        rejectionReason: p.rejectionReason || undefined,
       })),
     };
   },

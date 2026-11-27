@@ -22,6 +22,7 @@ export interface CreateStaffInput {
   fullName: string;
   role: StaffRole;
   phone: string;
+  password?: string;
   groupAssigned?: string;
   salary: number;
 }

@@ -2,12 +2,34 @@ import type { Request, Response, NextFunction } from 'express';
 import { ForbiddenError, UnauthorizedError } from '../errors/AppError.js';
 import { prisma } from '../../config/db.js';
 
+const ROLE_ALIASES: Record<string, string> = {
+  superadmin: 'superadmin',
+  director: 'director',
+  direktor: 'director',
+  teacher: 'teacher',
+  tarbiyachi: 'teacher',
+  accountant: 'accountant',
+  hisobchi: 'accountant',
+  nurse: 'nurse',
+  hamshira: 'nurse',
+  parent: 'parent',
+  ota_ona: 'parent',
+};
+
+export const normalizeRoleSlug = (role?: string | null): string => {
+  if (!role) return '';
+  const key = role.toLowerCase().trim();
+  return ROLE_ALIASES[key] || key;
+};
+
 export const requireRole = (...allowedRoles: string[]) => {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) {
       throw new UnauthorizedError();
     }
-    if (!allowedRoles.includes(req.user.role)) {
+    const userRole = normalizeRoleSlug(req.user.role);
+    const allowedNormalized = allowedRoles.map((r) => normalizeRoleSlug(r));
+    if (!allowedNormalized.includes(userRole)) {
       throw new ForbiddenError(
         `Ushbu amal uchun ruxsat berilmagan. Talab qilinadigan rol: [${allowedRoles.join(', ')}]`
       );

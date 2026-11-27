@@ -53,6 +53,7 @@ model Tenant {
   invoices      SubscriptionInvoice[]
   auditLogs     AuditLog[]
   notifications Notification[]
+  paymentCards  PaymentCard[]
 
   @@map("tenants")
 }
@@ -86,10 +87,11 @@ model Branch {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id])
-  users    User[]
-  groups   Group[]
-  children Child[]
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  users        User[]
+  groups       Group[]
+  children     Child[]
+  paymentCards PaymentCard[]
 
   @@map("branches")
 }
@@ -145,6 +147,7 @@ model User {
   fullName     String    @map("full_name")
   phone        String    @unique
   email        String?
+  avatarUrl    String?   @map("avatar_url")
   passwordHash String    @map("password_hash")
   salaryAmount BigInt    @default(0) @map("salary_amount")
   status       String    @default("active") // active | leave | inactive
@@ -305,22 +308,54 @@ model MedicalRecord {
 // 5. FINANCE & WAREHOUSE
 // -------------------------------------------------------------
 
-model Payment {
-  id            String    @id @default(uuid())
-  tenantId      String    @map("tenant_id")
-  branchId      String    @map("branch_id")
-  childId       String    @map("child_id")
-  transactionId String    @unique @map("transaction_id")
-  amount        BigInt
-  month         String
-  method        String    @default("payme") // payme | click | bank | cash
-  status        String    @default("paid") // paid | pending | overdue
-  receiptNumber String?   @map("receipt_number")
-  paidAt        DateTime? @map("paid_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+model PaymentCard {
+  id         String    @id @default(uuid())
+  tenantId   String    @map("tenant_id")
+  branchId   String?   @map("branch_id")
+  cardType   String    @default("uzcard") @map("card_type") // uzcard | humo | visa | mastercard | other
+  bankName   String    @map("bank_name")
+  cardNumber String    @map("card_number")
+  cardHolder String    @map("card_holder")
+  note       String?
+  isActive   Boolean   @default(true) @map("is_active")
+  sortOrder  Int       @default(0) @map("sort_order")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
 
-  child Child @relation(fields: [childId], references: [id])
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch   Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  payments Payment[]
+
+  @@map("payment_cards")
+}
+
+model Payment {
+  id                String    @id @default(uuid())
+  tenantId          String    @map("tenant_id")
+  branchId          String    @map("branch_id")
+  childId           String    @map("child_id")
+  paymentCardId     String?   @map("payment_card_id")
+  cardSnapshot      Json?     @map("card_snapshot")
+  transactionId     String    @unique @map("transaction_id")
+  amount            BigInt
+  month             String
+  periodStart       String?   @map("period_start")
+  periodEnd         String?   @map("period_end")
+  method            String    @default("payme") // payme | click | bank | cash | card_transfer
+  status            String    @default("paid") // paid | pending | overdue | rejected
+  receiptNumber     String?   @map("receipt_number")
+  receiptImageUrl   String?   @map("receipt_image_url")
+  submittedByUserId String?   @map("submitted_by_user_id")
+  reviewedByUserId  String?   @map("reviewed_by_user_id")
+  reviewedAt        DateTime? @map("reviewed_at")
+  rejectionReason   String?   @map("rejection_reason")
+  paidAt            DateTime? @map("paid_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  child       Child        @relation(fields: [childId], references: [id])
+  paymentCard PaymentCard? @relation(fields: [paymentCardId], references: [id], onDelete: SetNull)
 
   @@map("payments")
 }
@@ -441,7 +476,9 @@ model Notification {
   id         String   @id @default(uuid())
   tenantId   String   @map("tenant_id")
   userId     String?  @map("user_id")
-  targetRole String   @default("all") @map("target_role") // all | direktor | tarbiyachi | hisobchi | hamshira
+  childId    String?  @map("child_id")
+  category   String?  // attendance | medical | payment | system
+  targetRole String   @default("all") @map("target_role") // all | direktor | tarbiyachi | hisobchi | hamshira | parent
   title      String
   message    String
   type       String   @default("info") // info | warning | success | danger

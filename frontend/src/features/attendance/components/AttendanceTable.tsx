@@ -111,7 +111,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                   >
                     <option value="healthy">Sog‘lom</option>
                     <option value="cold">Shamollash alomati</option>
+                    <option value="flu">Shamollash / Gripp</option>
                     <option value="fever">Isitmasi bor</option>
+                    <option value="quarantine">Karantin / Izolyatsiya</option>
                     <option value="complaint">Boshqa shikoyat</option>
                   </select>
                 </td>

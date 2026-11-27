@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-
-type Lang = 'UZ' | 'RU' | 'EN';
+import React from 'react';
+import { useLangStore, type Lang } from '@/shared/i18n';
 
 export const LanguageSelector: React.FC = () => {
-  const [currentLang, setCurrentLang] = useState<Lang>('UZ');
+  const { lang: currentLang, setLang } = useLangStore();
 
   return (
     <div
@@ -18,13 +17,13 @@ export const LanguageSelector: React.FC = () => {
         boxShadow: 'var(--shadow-xs)',
       }}
     >
-      {(['UZ', 'RU', 'EN'] as const).map((lang) => {
+      {(['UZ', 'RU', 'EN'] as const).map((lang: Lang) => {
         const isActive = currentLang === lang;
         return (
           <button
             key={lang}
             type="button"
-            onClick={() => setCurrentLang(lang)}
+            onClick={() => setLang(lang)}
             style={{
               padding: '4px 10px',
               borderRadius: 9999,

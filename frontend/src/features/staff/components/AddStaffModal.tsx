@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '@/shared/ui/Modal';
 import { Button } from '@/shared/ui/Button';
+import { groupsApi } from '@/features/groups/api';
+import type { KindergartenGroup } from '@/features/groups/types';
 import type { CreateStaffInput, StaffRole } from '../types';
 
 interface AddStaffModalProps {
@@ -14,11 +16,23 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const [groups, setGroups] = useState<KindergartenGroup[]>([]);
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<StaffRole>('Tarbiyachi');
   const [phone, setPhone] = useState('+998 ');
-  const [groupAssigned, setGroupAssigned] = useState('Kichkintoylar guruhi');
+  const [password, setPassword] = useState('');
+  const [groupAssigned, setGroupAssigned] = useState('');
   const [salary, setSalary] = useState(4000000);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    groupsApi.getGroups().then((list) => {
+      setGroups(list);
+      if (list.length > 0) {
+        setGroupAssigned((prev) => prev || list[0].name);
+      }
+    });
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,15 +40,21 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
       alert('Iltimos, xodimning F.I.Sh. va telefon raqamini to‘liq kiriting.');
       return;
     }
+    if (password.trim() && password.trim().length < 6) {
+      alert('Parol kamida 6 ta belgidan iborat bo‘lishi kerak.');
+      return;
+    }
     onSubmit({
       fullName: fullName.trim(),
       role,
       phone: phone.trim(),
+      ...(password.trim() ? { password: password.trim() } : {}),
       groupAssigned: role === 'Tarbiyachi' || role === 'Yordamchi tarbiyachi' ? groupAssigned : undefined,
       salary: Number(salary) || 0,
     });
     setFullName('');
     setPhone('+998 ');
+    setPassword('');
   };
 
   return (
@@ -102,13 +122,29 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
               value={groupAssigned}
               onChange={(e) => setGroupAssigned(e.target.value)}
             >
-              <option value="Kichkintoylar guruhi">Kichkintoylar guruhi</option>
-              <option value="Qaldirg‘och guruhi">Qaldirg‘och guruhi</option>
-              <option value="Zukko bolajonlar">Zukko bolajonlar</option>
-              <option value="Yulduzcha guruhi">Yulduzcha guruhi</option>
+              <option value="">Biriktirilmagan</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.name}>
+                  {g.name}
+                </option>
+              ))}
             </select>
           </div>
         )}
+
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+            Kirish paroli (ixtiyoriy)
+          </label>
+          <input
+            type="text"
+            className="branch-select"
+            style={{ width: '100%', height: 40 }}
+            placeholder="Bo‘sh qoldirilsa: Password123!"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
 
         <div>
           <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>

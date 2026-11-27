@@ -3,35 +3,46 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import type { BranchItem } from '@/features/branches/types';
 import { branchesApi } from '@/features/branches/api';
-import { useAuthStore } from '@/shared/store/useAuthStore';
+import { useAuthStore, normalizeRole } from '@/shared/store/useAuthStore';
 import { useNotificationStore } from '@/shared/store/useNotificationStore';
 import { notificationService } from '@/shared/services/notificationService';
 import { NotificationDropdown } from '@/shared/ui/NotificationDropdown';
 import { ThemeToggle } from '@/shared/ui/ThemeToggle';
 import { LanguageSelector } from '@/shared/ui/LanguageSelector';
+import { UserAvatar } from '@/shared/ui/UserAvatar';
+import { useT, type TranslationKey } from '@/shared/i18n';
 
 interface ErpLayoutProps {
   children?: React.ReactNode;
 }
 
-type UserRole = 'direktor' | 'tarbiyachi' | 'hisobchi' | 'hamshira';
-
-const ROLES_INFO: Record<UserRole, { name: string; title: string; avatar: string }> = {
-  direktor: { name: 'Dilnoza Murodova', title: 'Direktor (Chilonzor)', avatar: 'DM' },
-  tarbiyachi: { name: 'Zilola Rahimova', title: 'Katta tarbiyachi', avatar: 'ZR' },
-  hisobchi: { name: 'Nodira Aliyeva', title: 'Bosh hisobchi', avatar: 'NA' },
-  hamshira: { name: 'Feruza Karimova', title: 'Hamshira (Tibbiyot)', avatar: 'FK' },
+const ROLE_DISPLAY_KEYS: Record<string, TranslationKey> = {
+  director: 'role.director',
+  teacher: 'role.teacher',
+  accountant: 'role.accountant',
+  nurse: 'role.nurse',
+  superadmin: 'role.superadmin',
 };
 
 export const ErpLayout: React.FC<ErpLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, activeBranchId, setActiveBranchId } = useAuthStore();
+  const { t } = useT();
+  const {
+    user,
+    tenant,
+    logout,
+    activeBranchId,
+    setActiveBranchId,
+    superadminSession,
+    exitImpersonation,
+  } = useAuthStore();
   const { unreadCount, isOpen: isNotifOpen, setIsOpen: setIsNotifOpen, fetchNotifications } = useNotificationStore();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(activeBranchId || '');
-  const [currentRole, setCurrentRole] = useState<UserRole>('direktor');
   const [branches, setBranches] = useState<BranchItem[]>([]);
+
+  const realRole = normalizeRole(user?.role);
 
   useEffect(() => {
     branchesApi.getBranches().then((list) => {
@@ -50,78 +61,82 @@ export const ErpLayout: React.FC<ErpLayoutProps> = ({ children }) => {
   // Request browser notification permission upon site entry & start real-time monitoring
   useEffect(() => {
     notificationService.requestNotificationPermission();
-    fetchNotifications(currentRole);
+    fetchNotifications(realRole);
 
     const interval = setInterval(() => {
-      fetchNotifications(currentRole);
+      fetchNotifications(realRole);
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [currentRole, fetchNotifications]);
+  }, [realRole, fetchNotifications]);
 
   const currentPath = location.pathname;
 
   const getPageTitle = () => {
     switch (currentPath) {
-      case '/dashboard': return 'Boshqaruv paneli';
-      case '/children': return 'Tarbiyalanuvchilar (Bolalar)';
-      case '/groups': return 'Guruhlar boshqaruvi';
-      case '/attendance': return 'Davomat va Tibbiy filtr';
-      case '/payments': return 'Ota-onalar to‘lovlari';
-      case '/expenses': return 'Xarajatlar va kassa';
-      case '/warehouse': return 'Ombor va Oshxona hisobi';
-      case '/staff': return 'Xodimlar va tarbiyachilar';
-      case '/branches': return 'Bog‘cha filiallari';
-      case '/settings': return 'Tizim sozlamalari';
-      default: return 'Bog‘cha ERP tizimi';
+      case '/dashboard': return t('title.dashboard');
+      case '/children': return t('title.children');
+      case '/groups': return t('title.groups');
+      case '/attendance': return t('title.attendance');
+      case '/medical': return t('title.medical');
+      case '/payments': return t('title.payments');
+      case '/expenses': return t('title.expenses');
+      case '/warehouse': return t('title.warehouse');
+      case '/staff': return t('title.staff');
+      case '/branches': return t('title.branches');
+      case '/settings': return t('title.settings');
+      default: return 'Bolajon ERP';
     }
   };
 
-interface NavItem {
-  to: string;
-  label: string;
-  badge?: string;
-  roles: string[];
-}
+  interface NavItem {
+    to: string;
+    label: string;
+    badge?: string;
+    roles: string[];
+  }
 
-interface NavSection {
-  section: string;
-  roles: string[];
-  items: NavItem[];
-}
+  interface NavSection {
+    section: string;
+    roles: string[];
+    items: NavItem[];
+  }
 
-const allNavSections: NavSection[] = [
+  const allNavSections: NavSection[] = [
     {
-      section: 'Asosiy',
-      roles: ['direktor', 'tarbiyachi', 'hisobchi', 'hamshira'],
+      section: t('nav.section.main'),
+      roles: ['director', 'teacher', 'accountant', 'nurse'],
       items: [
-        { to: '/dashboard', label: 'Boshqaruv paneli', roles: ['direktor', 'tarbiyachi', 'hisobchi'] },
-        { to: '/children', label: 'Tarbiyalanuvchilar', roles: ['direktor', 'tarbiyachi', 'hamshira'] },
-        { to: '/groups', label: 'Guruhlar', roles: ['direktor', 'tarbiyachi'] },
-        { to: '/attendance', label: 'Davomat va Tibbiy filtr', roles: ['direktor', 'tarbiyachi', 'hamshira'] },
+        { to: '/dashboard', label: t('nav.dashboard'), roles: ['director', 'accountant'] },
+        { to: '/children', label: t('nav.children'), roles: ['director', 'teacher', 'nurse'] },
+        { to: '/groups', label: t('nav.groups'), roles: ['director', 'teacher'] },
+        { to: '/attendance', label: t('nav.attendance'), roles: ['director', 'teacher', 'nurse'] },
+        { to: '/medical', label: t('nav.medical'), roles: ['director', 'nurse'] },
       ],
     },
     {
-      section: 'Moliya va Ombor',
-      roles: ['direktor', 'hisobchi'],
+      section: t('nav.section.finance'),
+      roles: ['director', 'accountant'],
       items: [
-        { to: '/payments', label: 'To‘lovlar', roles: ['direktor', 'hisobchi'] },
-        { to: '/expenses', label: 'Xarajatlar va kassa', roles: ['direktor', 'hisobchi'] },
-        { to: '/warehouse', label: 'Ombor va Oshxona', roles: ['direktor', 'hisobchi'] },
+        { to: '/payments', label: t('nav.payments'), roles: ['director', 'accountant'] },
+        { to: '/expenses', label: t('nav.expenses'), roles: ['director', 'accountant'] },
+        { to: '/warehouse', label: t('nav.warehouse'), roles: ['director', 'accountant'] },
       ],
     },
     {
-      section: 'Boshqaruv va Tizim',
-      roles: ['direktor', 'tarbiyachi', 'hisobchi', 'hamshira'],
+      section: t('nav.section.system'),
+      roles: ['director', 'teacher', 'accountant', 'nurse'],
       items: [
-        { to: '/staff', label: 'Xodimlar', roles: ['direktor'] },
-        { to: '/branches', label: 'Filiallar', roles: ['direktor'] },
-        { to: '/settings', label: 'Sozlamalar', roles: ['direktor', 'tarbiyachi', 'hisobchi', 'hamshira'] },
+        { to: '/staff', label: t('nav.staff'), roles: ['director'] },
+        { to: '/branches', label: t('nav.branches'), roles: ['director'] },
+        { to: '/settings', label: t('nav.settings'), roles: ['director', 'teacher', 'accountant', 'nurse'] },
       ],
     },
   ];
 
-  const profile = ROLES_INFO[currentRole];
+  const roleLabel = ROLE_DISPLAY_KEYS[realRole]
+    ? t(ROLE_DISPLAY_KEYS[realRole])
+    : user?.roleName || realRole.toUpperCase();
 
   return (
     <div className="app-shell">
@@ -168,9 +183,9 @@ const allNavSections: NavSection[] = [
         {/* Sidebar Navigatsiya */}
         <nav className="sidebar-nav">
           {allNavSections
-            .filter((sec) => sec.roles.includes(currentRole))
+            .filter((sec) => sec.roles.includes(realRole))
             .map((sec, idx) => {
-              const visibleItems = sec.items.filter((item) => item.roles.includes(currentRole));
+              const visibleItems = sec.items.filter((item) => item.roles.includes(realRole));
               if (visibleItems.length === 0) return null;
               return (
                 <div key={idx}>
@@ -192,53 +207,24 @@ const allNavSections: NavSection[] = [
                 </div>
               );
             })}
-
-          <div>
-            <div className="nav-section-title">Platforma</div>
-            <ul className="nav-list">
-              <li>
-                <Link to="/superadmin" className="nav-item" style={{ color: '#b45309' }}>
-                  ⚡ Superadmin portali
-                </Link>
-              </li>
-            </ul>
-          </div>
         </nav>
 
-        {/* Role Selector & Profile */}
+        {/* User Profile */}
         <div className="sidebar-footer" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-          <select
-            className="branch-select"
-            style={{ fontSize: 11.5, height: 32, padding: '2px 8px' }}
-            value={currentRole}
-            onChange={(e) => {
-              const r = e.target.value as UserRole;
-              setCurrentRole(r);
-              toast.info(`Rol almashtirildi: ${ROLES_INFO[r].title}`);
-            }}
-          >
-            <option value="direktor">👑 Rol: Direktor (Barchasi)</option>
-            <option value="tarbiyachi">👩‍🏫 Rol: Tarbiyachi</option>
-            <option value="hisobchi">💼 Rol: Hisobchi</option>
-            <option value="hamshira">🩺 Rol: Hamshira</option>
-          </select>
-
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div className="avatar">
-                {user?.fullName ? user.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : profile.avatar}
-              </div>
+              <UserAvatar fullName={user?.fullName} avatarUrl={user?.avatarUrl} size={38} />
               <div className="profile-meta">
-                <span className="profile-name">{user?.fullName || profile.name}</span>
-                <span className="profile-role">{user?.role ? user.role.toUpperCase() : profile.title}</span>
+                <span className="profile-name">{user?.fullName || 'Foydalanuvchi'}</span>
+                <span className="profile-role">{roleLabel}</span>
               </div>
             </div>
             <button
               type="button"
-              title="Tizimdan chiqish"
+              title={t('common.logout')}
               onClick={async () => {
                 await logout();
-                toast.info('Tizimdan chiqildi');
+                toast.info(t('common.loggedOut'));
                 navigate('/login');
               }}
               style={{
@@ -264,6 +250,45 @@ const allNavSections: NavSection[] = [
 
       {/* MAIN WRAPPER */}
       <div className="main-wrapper">
+        {superadminSession && (
+          <div
+            style={{
+              background: 'linear-gradient(90deg, #fef3c7 0%, #fde68a 100%)',
+              borderBottom: '1px solid #f59e0b',
+              padding: '8px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              fontSize: 13,
+              color: '#92400e',
+              fontWeight: 600,
+            }}
+          >
+            <span>
+              {t('topbar.impersonating', { name: tenant?.name || user?.tenantName || 'Bog‘cha' })}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                exitImpersonation();
+                navigate('/superadmin');
+              }}
+              style={{
+                padding: '5px 12px',
+                borderRadius: 6,
+                border: '1px solid #d97706',
+                background: '#ffffff',
+                color: '#b45309',
+                fontWeight: 600,
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              {t('topbar.returnSuperadmin')}
+            </button>
+          </div>
+        )}
         <header className="topbar">
           <div className="topbar-left">
             <button
@@ -283,7 +308,7 @@ const allNavSections: NavSection[] = [
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              <input type="search" placeholder="Qidirish..." />
+              <input type="search" placeholder={t('common.search')} />
             </div>
 
             {/* Language & Theme Controls */}
@@ -295,7 +320,7 @@ const allNavSections: NavSection[] = [
                 type="button"
                 className="btn btn-icon notif-btn"
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
-                title="Bildirishnomalar"
+                title={t('common.notifications')}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
@@ -326,12 +351,33 @@ const allNavSections: NavSection[] = [
               <NotificationDropdown />
             </div>
 
+            {['director', 'teacher'].includes(realRole) && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => navigate('/children')}
+              >
+                {t('topbar.admitChild')}
+              </button>
+            )}
+
             <button
               type="button"
-              className="btn btn-primary"
-              onClick={() => navigate('/children')}
+              onClick={() => navigate('/settings')}
+              title={`${user?.fullName || ''} — ${t('avatar.topbarTitle')}`}
+              aria-label={t('avatar.topbarTitle')}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                borderRadius: '9999px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              + Bola qabuli
+              <UserAvatar fullName={user?.fullName} avatarUrl={user?.avatarUrl} size={38} />
             </button>
           </div>
         </header>

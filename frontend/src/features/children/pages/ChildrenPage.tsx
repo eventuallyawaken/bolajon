@@ -2,22 +2,35 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import type { Child, CreateChildInput } from '../types';
 import { childrenApi } from '../api';
+import { groupsApi } from '@/features/groups/api';
+import type { KindergartenGroup } from '@/features/groups/types';
 import { ChildrenTable } from '../components/ChildrenTable';
 import { AddChildModal } from '../components/AddChildModal';
 import { Button } from '@/shared/ui/Button';
+import { useAuthStore, normalizeRole } from '@/shared/store/useAuthStore';
+import { useT } from '@/shared/i18n';
 
 export const ChildrenPage: React.FC = () => {
+  const { t } = useT();
+  const user = useAuthStore((s) => s.user);
+  const role = normalizeRole(user?.role);
+  const canAdmit = role === 'director' || role === 'teacher';
+  const canDelete = role === 'director';
+
   const [childrenList, setChildrenList] = useState<Child[]>([]);
+  const [groups, setGroups] = useState<KindergartenGroup[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [groupFilter, setGroupFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    childrenApi.getChildren().then((res) => {
-      setChildrenList(res);
-      setIsLoading(false);
-    });
+    Promise.all([childrenApi.getChildren(), groupsApi.getGroups()])
+      .then(([cList, gList]) => {
+        setChildrenList(cList);
+        setGroups(gList);
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   const filteredChildren = useMemo(() => {
@@ -35,24 +48,43 @@ export const ChildrenPage: React.FC = () => {
     });
   }, [childrenList, groupFilter, searchQuery]);
 
+  const groupChipNames = useMemo(() => {
+    const set = new Set<string>();
+    groups.forEach((g) => {
+      if (g.name) set.add(g.name);
+    });
+    childrenList.forEach((c) => {
+      if (c.groupName && c.groupName !== 'Guruhsiz') set.add(c.groupName);
+    });
+    return Array.from(set);
+  }, [groups, childrenList]);
+
   const handleCreateChild = async (input: CreateChildInput) => {
-    const created = await childrenApi.createChild(input);
-    setChildrenList((prev) => [created, ...prev]);
-    setIsModalOpen(false);
-    toast.success(`"${created.fullName}" bog‘chaga muvaffaqiyatli qabul qilindi!`);
+    try {
+      const created = await childrenApi.createChild(input);
+      setChildrenList((prev) => [created, ...prev]);
+      setIsModalOpen(false);
+      toast.success(`"${created.fullName}" bog‘chaga muvaffaqiyatli qabul qilindi!`);
+    } catch {
+      toast.error('Bolani qabul qilishda xatolik yuz berdi');
+    }
   };
 
   const handleDeleteChild = async (id: string, name: string) => {
     if (!window.confirm(`"${name}"ni ro‘yxatdan o‘chirishni tasdiqlaysizmi?`)) return;
-    await childrenApi.deleteChild(id);
-    setChildrenList((prev) => prev.filter((c) => c.id !== id));
-    toast.warn(`"${name}" ro‘yxatdan chiqarildi.`);
+    try {
+      await childrenApi.deleteChild(id);
+      setChildrenList((prev) => prev.filter((c) => c.id !== id));
+      toast.warn(`"${name}" ro‘yxatdan chiqarildi.`);
+    } catch {
+      toast.error('Bolani o‘chirishda xatolik yuz berdi');
+    }
   };
 
   if (isLoading) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-        <div className="text-muted">Bolalar ro‘yxati yuklanmoqda...</div>
+        <div className="text-muted">{t('children.loading')}</div>
       </div>
     );
   }
@@ -70,7 +102,7 @@ export const ChildrenPage: React.FC = () => {
               </svg>
               <input
                 type="search"
-                placeholder="Bola yoki ota-ona ismini qidirish..."
+                placeholder={t('children.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -82,40 +114,45 @@ export const ChildrenPage: React.FC = () => {
                 className={`chip ${groupFilter === 'all' ? 'active' : ''}`}
                 onClick={() => setGroupFilter('all')}
               >
-                Barchasi ({childrenList.length})
+                {t('common.all')} ({childrenList.length})
               </button>
-              <button
-                type="button"
-                className={`chip ${groupFilter === 'Kichkintoylar guruhi' ? 'active' : ''}`}
-                onClick={() => setGroupFilter('Kichkintoylar guruhi')}
-              >
-                Kichkintoylar
-              </button>
-              <button
-                type="button"
-                className={`chip ${groupFilter === 'Qaldirg‘och guruhi' ? 'active' : ''}`}
-                onClick={() => setGroupFilter('Qaldirg‘och guruhi')}
-              >
-                Qaldirg‘och
-              </button>
+              {groupChipNames.map((gName) => (
+                <button
+                  key={gName}
+                  type="button"
+                  className={`chip ${groupFilter === gName ? 'active' : ''}`}
+                  onClick={() => setGroupFilter(gName)}
+                >
+                  {gName}
+                </button>
+              ))}
             </div>
           </div>
 
-          <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
-            + Yangi bola qabuli
-          </Button>
+          {canAdmit && (
+            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+              {t('children.admit')}
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Children Table */}
-      <ChildrenTable childrenList={filteredChildren} onDeleteChild={handleDeleteChild} />
+      <ChildrenTable
+        childrenList={filteredChildren}
+        canDelete={canDelete}
+        onDeleteChild={handleDeleteChild}
+      />
 
       {/* Add Child Modal */}
-      <AddChildModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateChild}
-      />
+      {canAdmit && (
+        <AddChildModal
+          isOpen={isModalOpen}
+          groups={groups}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleCreateChild}
+        />
+      )}
     </div>
   );
 };

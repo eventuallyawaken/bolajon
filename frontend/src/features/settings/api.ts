@@ -30,7 +30,12 @@ export const settingsApi = {
     return res.data.data;
   },
 
-  async updateProfile(data: { fullName?: string; phone?: string; email?: string | null }) {
+  async updateProfile(data: {
+    fullName?: string;
+    phone?: string;
+    email?: string | null;
+    avatarUrl?: string | null;
+  }) {
     const res = await http.patch('/auth/profile', data);
     return res.data.data;
   },

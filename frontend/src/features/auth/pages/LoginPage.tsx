@@ -1,36 +1,48 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useAuthStore } from '@/shared/store/useAuthStore';
+import { useAuthStore, getDefaultRouteForRole } from '@/shared/store/useAuthStore';
+import { LanguageSelector } from '@/shared/ui/LanguageSelector';
+import { useT } from '@/shared/i18n';
+
+const SHOW_DEMO_ACCOUNTS =
+  import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === 'true';
+
+const DEMO_ACCOUNTS = [
+  { roleKey: 'role.superadmin' as const, icon: '👑', phone: '+998 90 000 00 01', color: '#6366f1' },
+  { roleKey: 'role.director' as const, icon: '🏢', phone: '+998 90 123 45 66', color: '#0d9488' },
+  { roleKey: 'role.teacher' as const, icon: '👩‍🏫', phone: '+998 90 234 11 22', color: '#0284c7' },
+  { roleKey: 'role.accountant' as const, icon: '💼', phone: '+998 93 456 33 44', color: '#d97706' },
+  { roleKey: 'role.nurse' as const, icon: '🩺', phone: '+998 97 567 44 55', color: '#059669' },
+  { roleKey: 'role.parent' as const, icon: '👨‍👩‍👧', phone: '+998 90 777 88 99', color: '#db2777' },
+];
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
-  const [phone, setPhone] = useState('+998 90 123 45 67');
-  const [password, setPassword] = useState('Password123!');
+  const { t } = useT();
+  const [phone, setPhone] = useState(SHOW_DEMO_ACCOUNTS ? '+998 90 123 45 66' : '');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone || !password) {
-      toast.error('Telefon raqam va parolni kiriting');
+    if (!phone.trim() || !password) {
+      toast.error(t('login.fillRequired'));
       return;
     }
 
     setLoading(true);
-    const res = await login(phone, password);
+    const res = await login(phone.trim(), password);
     setLoading(false);
 
     if (res.success) {
-      toast.success('Xush kelibsiz! Tizimga muvaffaqiyatli kirildi');
-      const currentUser = useAuthStore.getState().user;
-      if (currentUser?.role === 'superadmin') {
-        navigate('/superadmin');
-      } else {
-        navigate('/dashboard');
-      }
+      toast.success(t('login.welcome'));
+      const role = res.role || useAuthStore.getState().user?.role;
+      navigate(getDefaultRouteForRole(role), { replace: true });
     } else {
-      toast.error(res.message || 'Kirishda xatolik yuz berdi');
+      toast.error(res.message || t('login.error'));
     }
   };
 
@@ -43,12 +55,17 @@ export const LoginPage: React.FC = () => {
     <div style={{
       minHeight: '100vh',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)',
       padding: '20px',
-      fontFamily: 'Inter, system-ui, sans-serif'
+      fontFamily: 'Inter, system-ui, sans-serif',
+      position: 'relative',
     }}>
+      <div style={{ position: 'absolute', top: '20px', right: '24px' }}>
+        <LanguageSelector />
+      </div>
       <div style={{
         width: '100%',
         maxWidth: '440px',
@@ -78,23 +95,23 @@ export const LoginPage: React.FC = () => {
             </svg>
           </div>
           <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#0f172a', margin: '0 0 6px 0' }}>
-            Bolajon ERP
+            {t('login.title')}
           </h2>
           <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
-            Bog‘cha boshqaruvi va SaaS platformasiga kirish
+            {t('login.subtitle')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-              Telefon raqam
+              {t('login.phone')}
             </label>
             <input
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+998 90 123 45 67"
+              placeholder="+998 90 123 45 66"
               required
               style={{
                 width: '100%',
@@ -110,24 +127,45 @@ export const LoginPage: React.FC = () => {
 
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-              Maxfiy parol
+              {t('login.password')}
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              style={{
-                width: '100%',
-                padding: '11px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '14px',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                style={{
+                  width: '100%',
+                  padding: '11px 42px 11px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '14px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={t('login.show')}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                }}
+              >
+                {showPassword ? t('login.hide') : t('login.show')}
+              </button>
+            </div>
           </div>
 
           <button
@@ -147,56 +185,43 @@ export const LoginPage: React.FC = () => {
               marginTop: '6px'
             }}
           >
-            {loading ? 'Tekshirilmoqda...' : 'Tizimga kirish'}
+            {loading ? t('login.checking') : t('login.submit')}
           </button>
         </form>
 
-        <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px dashed #e2e8f0' }}>
-          <p style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '10px', textAlign: 'center' }}>
-            ⚡ Tezkor sinov hisoblari (1-bosishda to‘ldirish):
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('+998 90 123 45 67')}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                fontSize: '12px',
-                cursor: 'pointer',
-                textAlign: 'left'
-              }}
-            >
-              <span style={{ fontWeight: '600', color: '#0f172a' }}>🏢 Bog‘cha Direktori</span>
-              <span style={{ color: '#0d9488' }}>+998 90 123 45 67</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('+998 90 000 00 01')}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                fontSize: '12px',
-                cursor: 'pointer',
-                textAlign: 'left'
-              }}
-            >
-              <span style={{ fontWeight: '600', color: '#0f172a' }}>👑 SaaS Superadmin</span>
-              <span style={{ color: '#6366f1' }}>+998 90 000 00 01</span>
-            </button>
+        {SHOW_DEMO_ACCOUNTS && (
+          <div style={{ marginTop: '24px', paddingTop: '18px', borderTop: '1px dashed #e2e8f0' }}>
+            <p style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '10px', textAlign: 'center' }}>
+              ⚡ {t('login.demoTitle')}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+              {DEMO_ACCOUNTS.map((acc) => (
+                <button
+                  key={acc.phone}
+                  type="button"
+                  onClick={() => handleFillDemo(acc.phone)}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                >
+                  <span style={{ fontWeight: '600', color: '#0f172a' }}>{acc.icon} {t(acc.roleKey)}</span>
+                  <span style={{ color: acc.color }}>{acc.phone}</span>
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', marginTop: '8px' }}>
+              {t('login.demoPassNote')} <code>Password123!</code>
+            </p>
           </div>
-          <p style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', marginTop: '8px' }}>
-            Ikkala hisob uchun parol: <code>Password123!</code>
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );
